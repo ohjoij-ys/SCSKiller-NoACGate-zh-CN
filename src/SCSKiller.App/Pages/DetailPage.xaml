@@ -425,6 +425,19 @@
                                           IsOn="{x:Bind Vm.RecordOn, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanToggleRecord, Mode=OneWay}" Toggled="OnRecordToggled"
                                           AutomationProperties.Name="Record while I play" AutomationProperties.HelpText="{x:Bind Vm.RecordNote, Mode=OneWay}" />
                         </Grid>
+                        <Grid ColumnSpacing="12" Visibility="{x:Bind Vm.HasAntiCheat, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{x:Bind Vm.AntiCheatRecordTitle, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind Vm.AntiCheatRecordNote, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AntiCheatRecordSwitch" Grid.Column="1" MinWidth="0" VerticalAlignment="Top" OnContent="" OffContent=""
+                                          IsOn="{x:Bind Vm.AntiCheatRecordOn, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanToggleAntiCheatRecord, Mode=OneWay}" Toggled="OnAntiCheatRecordToggled"
+                                          AutomationProperties.Name="{x:Bind Vm.AntiCheatRecordTitle, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind Vm.AntiCheatRecordNote, Mode=OneWay}" />
+                        </Grid>
                         <StackPanel Spacing="14" Visibility="{x:Bind Vm.ShowOfflineOn, Mode=OneWay}">
                             <InfoBar IsOpen="True" IsClosable="False" Severity="Error" Title="Ban risk" Message="{x:Bind Vm.OfflineRiskText, Mode=OneWay}" />
                             <InfoBar Severity="Informational" IsClosable="False" IsOpen="{x:Bind Vm.HasSessionNote, Mode=OneWay}" Visibility="{x:Bind Vm.HasSessionNote, Mode=OneWay}"

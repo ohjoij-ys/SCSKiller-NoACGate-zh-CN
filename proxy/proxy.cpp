@@ -242,6 +242,9 @@ void logf(const char* fmt, ...) {  // also used by warm11.cpp
 // risk=1 with that binding, inside the signed stamp (a session the user confirmed at their own risk, beside the anti-cheat):
 // the marker, Riot, client and VAC checks still run but refuse on nothing they find, and the log names it all once, as it
 // opens. Nothing is hidden from the anti-cheat. risk= without pid= or with another value is refused ("risk= malformed").
+// allow_ac=1, also inside the signed stamp (the app's per-game permission: GameRecord.AntiCheatRecordingAllowed, NoACGate):
+// the same checks run and refuse on nothing they find, exactly as under risk, but the ini needs no pid= — a store launcher
+// that starts the game itself loads the recorder too, which a per-process binding could never admit. Only 1 is a value.
 // What a check couldn't inspect (a folder that can't be listed, Steam files that can't be read) refuses as without risk.
 // Accepted limits: a client that loads later in an admitted run isn't caught here, under risk or not (the app removes the
 // recorder at its next check); anti-cheat an update adds deeper in the install than those listings, without changing the
@@ -672,7 +675,7 @@ static bool signed_by_app(const std::wstring& root) {
     const std::string key = read_all(dir + L"\\recorder.key", 256);
     if (key.size() < 32 || key.size() > 128) return false;
     const std::wstring stamp = signed_stamp(ini_string(L"exe_size"), ini_string(L"exe_time"), pid, ini_string(L"pid_time"), ini_string(L"risk"), ini_string(L"vendor"),
-                                            ini_string(L"overlay"), ini_string(L"ab_play_s"), ini_string(L"ab_tag"));
+                                            ini_string(L"overlay"), ini_string(L"ab_play_s"), ini_string(L"ab_tag"), ini_string(L"allow_ac"));
     const auto no_slash = [](const std::wstring& d) { return d.substr(0, d.size() > 3 ? d.size() - 1 : d.size()); };
     const std::wstring want = recorder_sig(key, file_key(exe), file_key(no_slash(g_dir)), stamp, ini_string(L"root"), file_key(no_slash(root)));
     return !want.empty() && sig == want;
@@ -804,6 +807,9 @@ static bool admitted() {
         // the folders as they are on disk: a launch through a link or junction lists the real exe-to-root chain
         const std::wstring here = final_dir(g_dir), root = here.empty() ? L"" : install_root(here);
         const bool bound = !ini_string(L"pid").empty(), risk = !ini_string(L"risk").empty();
+        // NoACGate: the app's per-game permission, in the signed stamp (an ini that isn't signed with it can't carry it)
+        const std::wstring allow = ini_string(L"allow_ac");
+        const bool allow_ac = allow == L"1";
         std::string seen;
         const char* why = g_dir.empty() ? "the recorder's folder can't be read"
                         : g_elsewhere ? "loaded from another folder than the exe"
@@ -815,6 +821,7 @@ static bool admitted() {
                         : !signed_by_app(root) ? "not signed by SCSKiller"
                         : bound && !bound_here() ? "bound to another process"
                         : !risk_well_formed(ini_string(L"pid"), ini_string(L"risk")) ? "risk= malformed"
+                        : !allow.empty() && !allow_ac ? "allow_ac= malformed"
                         : !anti_cheat_markers(markers) ? "markers= malformed" : nullptr;
         if (!why) why = revoked_here();
         if (!why && bound && !risk) markers.erase(markers.begin(), markers.begin() + kEasyAntiCheatMarkers);  // the app started this process without EasyAntiCheat
@@ -824,7 +831,7 @@ static bool admitted() {
             std::vector<std::string> found;
             const char* found_why = nullptr;
             for (auto& d : dirs) {
-                const std::vector<std::string> names = anti_cheat_in(d, markers, risk);
+                const std::vector<std::string> names = anti_cheat_in(d, markers, risk || allow_ac);   // NoACGate: all of them, they go to the log
                 if (names.empty()) continue;
                 const bool beside = d == here;
                 if (!found_why || names[0] == "?") found_why = beside ? "anti-cheat next to the exe" : "anti-cheat in the install folder";
@@ -833,9 +840,9 @@ static bool admitted() {
                     break;
                 }
                 for (auto& n : names) found.push_back(n + (beside ? " (next to the exe)" : " (in the install folder)"));
-                if (!risk) break;
+                if (!(risk || allow_ac)) break;
             }
-            why = decide(risk, riot_games(), found, found_why, anti_cheat_loaded(), vac_now(), seen);
+            why = decide(risk, riot_games(), found, found_why, anti_cheat_loaded(), vac_now(), seen, allow_ac);
         }
         // tests: a change in between. SCSKILLER_TEST_ADMIT_GATE=<name>: sets the event <name>.checked, waits for <name>.go.
         // Only in a process exporting SCSKiller_WarmHost (selftest), never a game.
@@ -859,6 +866,7 @@ static bool admitted() {
         if (why) unhook_ags("admission refused");   // an AGS patch from the load path must not stay in a refused process
         else if (g_signed.vendor != L"amd") unhook_ags("vendor=amd isn't in the signed ini");
         if (!why && risk) logf("risk=1: recording at the user's own risk, anti-cheat seen: %s", seen.c_str());
+        else if (!why && allow_ac) logf("allow_ac=1: SCSKiller allows the recorder in this game beside its anti-cheat; anti-cheat seen: %s", seen.c_str());
         refused(why);
     });
     // Outside call_once: GetModuleFileNameW takes the loader lock, which a thread waiting on call_once may hold.

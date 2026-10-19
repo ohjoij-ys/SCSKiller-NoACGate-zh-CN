@@ -7,9 +7,11 @@
 #include <vector>
 
 // The stamp lines sig= covers, as ScsKiller.Signed writes them: exe_size=, exe_time=, then pid= and pid_time= when pid= is
-// there, then risk= when it is there.
+// there, then risk= when it is there, then allow_ac=1 when the app allows the recorder beside this game's anti-cheat
+// (GameRecord.AntiCheatRecordingAllowed; NoACGate).
 inline std::wstring signed_stamp(const std::wstring& size, const std::wstring& time, const std::wstring& pid, const std::wstring& pid_time, const std::wstring& risk,
-                                 const std::wstring& vendor = L"", const std::wstring& overlay = L"", const std::wstring& play_s = L"", const std::wstring& tag = L"") {
+                                 const std::wstring& vendor = L"", const std::wstring& overlay = L"", const std::wstring& play_s = L"", const std::wstring& tag = L"",
+                                 const std::wstring& allow_ac = L"") {
     std::wstring s = L"exe_size=" + size + L"\r\nexe_time=" + time + L"\r\n";
     if (!pid.empty()) s += L"pid=" + pid + L"\r\npid_time=" + pid_time + L"\r\n";
     if (!risk.empty()) s += L"risk=" + risk + L"\r\n";
@@ -17,6 +19,7 @@ inline std::wstring signed_stamp(const std::wstring& size, const std::wstring& t
     if (!overlay.empty()) s += L"overlay=" + overlay + L"\r\n";
     if (!play_s.empty()) s += L"ab_play_s=" + play_s + L"\r\n";
     if (!tag.empty()) s += L"ab_tag=" + tag + L"\r\n";
+    if (!allow_ac.empty()) s += L"allow_ac=" + allow_ac + L"\r\n";
     return s;
 }
 
@@ -27,9 +30,10 @@ inline bool risk_well_formed(const std::wstring& pid, const std::wstring& risk) 
 // root ("name (where)"; {"?"} when one couldn't be listed whole) with found_why the reason for the first, the anti-cheat client
 // modules loaded, vac_now's reason ("VAC: ..." when Steam's files couldn't tell). Without risk the first finding refuses.
 // Under risk a definite finding admits and goes to seen as the log lists it; what couldn't be inspected refuses as without risk.
+// allow_ac (the app's per-game permission, sig'd as allow_ac=1): the findings are listed in seen and admit, as under risk.
 inline const char* decide(bool risk, bool riot, const std::vector<std::string>& found, const char* found_why, const std::vector<std::string>& loaded, const char* vac,
-                          std::string& seen) {
-    if (!risk) return riot ? "Riot Games install" : !found.empty() ? found_why : !loaded.empty() ? "anti-cheat client loaded" : vac;
+                          std::string& seen, bool allow_ac = false) {
+    if (!risk && !allow_ac) return riot ? "Riot Games install" : !found.empty() ? found_why : !loaded.empty() ? "anti-cheat client loaded" : vac;
     if (!found.empty() && found[0] == "?") return found_why;
     if (vac && !strncmp(vac, "VAC:", 4)) return vac;
     for (auto& m : found) seen += (seen.empty() ? "" : ", ") + m;

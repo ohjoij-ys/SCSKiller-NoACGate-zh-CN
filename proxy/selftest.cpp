@@ -1684,6 +1684,10 @@ static int admission_rules() {
     // ScsKiller.SignedLines after the binding: vendor=, then the countdown's three lines
     CHECK(signed_stamp(L"1", L"2", L"", L"", L"", L"amd", L"1", L"420", L"before") == L"exe_size=1\r\nexe_time=2\r\nvendor=amd\r\noverlay=1\r\nab_play_s=420\r\nab_tag=before\r\n");
     CHECK(signed_stamp(L"1", L"2", L"3", L"4", L"1", L"amd") == L"exe_size=1\r\nexe_time=2\r\npid=3\r\npid_time=4\r\nrisk=1\r\nvendor=amd\r\n");
+    // ScsKiller.SignedLines' NoACGate line, last: the app allows the recorder beside this game's anti-cheat
+    CHECK(signed_stamp(L"1", L"2", L"", L"", L"", L"", L"", L"", L"", L"1") == L"exe_size=1\r\nexe_time=2\r\nallow_ac=1\r\n");
+    CHECK(signed_stamp(L"1", L"2", L"", L"", L"", L"amd", L"1", L"420", L"before", L"1")
+          == L"exe_size=1\r\nexe_time=2\r\nvendor=amd\r\noverlay=1\r\nab_play_s=420\r\nab_tag=before\r\nallow_ac=1\r\n");
     CHECK(risk_well_formed(L"", L"") && risk_well_formed(L"3", L"") && risk_well_formed(L"3", L"1"));
     CHECK(!risk_well_formed(L"", L"1") && !risk_well_formed(L"3", L"2") && !risk_well_formed(L"3", L"yes"));
     // the verdict: a finding refuses unless the session takes the risk, and the log then names them all
@@ -1707,6 +1711,15 @@ static int admission_rules() {
     seen.clear();
     CHECK(!strcmp(decide(true, false, {"?"}, beside, none, nullptr, seen), beside));  // a folder couldn't be listed
     CHECK(!strcmp(decide(true, false, none, nullptr, none, "VAC: Steam's files couldn't be checked", seen), "VAC: Steam's files couldn't be checked"));
+    // NoACGate: allow_ac=1 (the app's per-game permission) admits what risk=1 admits, without pid=, and names it once
+    seen.clear();
+    CHECK(!decide(false, true, eac, beside, client, vac, seen, true)
+          && seen == "EasyAntiCheat (next to the exe), start_protected_game.exe (in the install folder), BEClient_x64.dll loaded, Riot Games install, VAC");
+    seen.clear();
+    CHECK(!decide(false, false, be, beside, none, nullptr, seen, true) && seen == "BEService_x64.exe (next to the exe)");
+    seen.clear();
+    CHECK(!strcmp(decide(false, false, {"?"}, beside, none, nullptr, seen, true), beside));   // what can't be inspected still refuses
+    CHECK(!strcmp(decide(false, false, none, nullptr, none, "VAC: Steam's files couldn't be checked", seen, true), "VAC: Steam's files couldn't be checked"));
     CHECK(seen.empty());
     printf("admission OK\n");
     return 0;

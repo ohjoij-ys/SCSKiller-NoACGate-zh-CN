@@ -315,6 +315,7 @@ public sealed record GameState(
     bool RecorderForeign = false,     // another SCSKiller copy placed the recorder in its folder: off here until the user turns it on
     string? RecorderSkip = null,      // ScsKiller.Skip*; null = compatible
     string? RecorderNote = null,      // the last reconcile's pending or failed change; null = none
+    bool AntiCheatRecordingAllowed = false,   // NoACGate: the plain recorder is allowed beside this game's anti-cheat; the detection stays visible
     string? RecorderRefused = null,   // why the game's last launch wasn't recorded (ScsKiller.Refused, ScsKiller.NeverSaw); null = it recorded, or no launch since
     string? RecorderMod = null,       // what a foreign d3d12.dll in the game folder (or the one chained to it) calls itself; null = none
     bool RecordAlongsideMod = false,  // the user chose to record alongside it (IScsKiller.SetRecordAlongsideMod)
@@ -623,6 +624,10 @@ public interface IScsKiller
     void RefreshCacheSizes();
     /// <summary>Never throws for the game's state: see <see cref="GameState.RecorderSkip"/>, <see cref="GameState.RecorderNote"/>.</summary>
     void SetRecorderOverride(string gameId, RecorderOverride value);
+    /// <summary>NoACGate: allow (or stop allowing) the plain recorder in a game with anti-cheat. On also turns
+    /// <see cref="RecorderOverride.On"/>; nothing is written for a game whose folder isn't confirmed. Off takes the
+    /// recorder out of an anti-cheat game's folder again.</summary>
+    void SetAntiCheatRecording(string gameId, bool on);
     /// <summary>"Record alongside &lt;mod&gt;" (<see cref="GameState.RecorderMod"/>): the recorder may take a mod's d3d12.dll
     /// place, the mod renamed and put back byte for byte when the recorder goes. Never throws for the game's state.</summary>
     void SetRecordAlongsideMod(string gameId, bool on);

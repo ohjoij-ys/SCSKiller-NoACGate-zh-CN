@@ -521,6 +521,20 @@ public sealed partial class DetailPage : Page
 
     void SetAlongside(bool on) => Set((vm, p) => vm.AlongsidePending = p, on, id => App.Core.SetRecordAlongsideMod(id, on));
 
+    // NoACGate: the game's own permission, asked once (it is the user's risk), then the core installs and reconciles as usual
+    async void OnAntiCheatRecordToggled(object _, RoutedEventArgs __)
+    {
+        var on = AntiCheatRecordSwitch.IsOn;
+        if (on == Vm.AntiCheatRecordOn) return;
+        if (on && !await App.ConfirmAsync(this, $"Allow the recorder in {Vm.Name} beside its anti-cheat?",
+                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = Vm.AntiCheatRecordNote }, "Record anyway"))
+        {
+            Vm.Refresh();   // the switch goes back to what the record says
+            return;
+        }
+        Set((vm, p) => vm.AntiCheatRecordPending = p, on, id => App.Core.SetAntiCheatRecording(id, on));
+    }
+
     // Every launch is confirmed here: the core starts a session only with confirmed: true
     async void OnRecordOffline(object _, RoutedEventArgs __)
     {

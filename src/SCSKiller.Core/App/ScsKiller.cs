@@ -1257,13 +1257,16 @@ public sealed partial class ScsKiller : IScsKiller
         try { ours = IsOurProxy(dll) && !Foreign(exeDir); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { ours = (by != null ? Store.LoadGame(by) : rec).RecorderFiles.ContainsKey(dllName) && !Foreign(exeDir); }   // held by the game
         if (by != null) (shared, ours) = (ours, false);   // the first game's recorder, on for this game too
-        // the recorder is never installed next to anti-cheat, nor in a game the user added before they confirm its folder
+        // the recorder is never installed next to anti-cheat (unless the user allowed it for this game, NoACGate), nor in a
+        // game the user added before they confirm its folder
         var unconfirmed = Unconfirmed(g);
         var slFirst = streamlineFirst && Vendor.Vendor == GpuVendor.Nvidia && dllName == Dll12;
+        // NoACGate: the game's own permission sends it down the plain recorder path, never down a risk session
+        var allowAntiCheat = rec.AntiCheatRecordingAllowed && rec.Recorder == RecorderOverride.On;
         // a risk session can record it: no claim that its anti-cheat blocks the recorder
-        var riskOffered = (antiCheat != AntiCheat.None || vac) && OfflineEntry(g, antiCheat, engine) == null && RiskOffered(g, engine, anyAntiCheat: true);
+        var riskOffered = !allowAntiCheat && (antiCheat != AntiCheat.None || vac) && OfflineEntry(g, antiCheat, engine) == null && RiskOffered(g, engine, anyAntiCheat: true);
         var noRecording = riskOffered ? RiskNoRecording
-            : antiCheat != AntiCheat.None ? $"which {(antiCheat == AntiCheat.Other ? "its anti-cheat" : antiCheat)} blocks"
+            : antiCheat != AntiCheat.None && !allowAntiCheat ? $"which {(antiCheat == AntiCheat.Other ? "its anti-cheat" : antiCheat)} blocks"
               + (OfflineEntry(g, antiCheat, engine) != null ? " unless you record an offline session (game page)" : "")
             : vac ? "which VAC blocks" : unconfirmed ? ManualNoRecording : slFirst ? StreamlineNoRecording : null;
         // a session that records DirectX 11 (RiskDll) can record them, else nothing can
@@ -1355,7 +1358,7 @@ public sealed partial class ScsKiller : IScsKiller
                 PlayedAt = rec.WarmedGameVersion != null && rec.WarmedGameVersion != g.Version ? null : new[] { rec.LastPlay?.From, rec.FirstLaunch?.At }.Max(),
                 Similar = SimilarOf(g), CompileFailed = rec.CompileFailedBuild != null && rec.CompileFailedBuild == (g.Version ?? ""),
                 NotPlanned = GameVerdicts.Current.Unsupported(g, engine) is { } verdict ? verdict.Kind == GameVerdicts.UnsupportedVerdict
-                    : status == GameStatus.Unsupported && reshade is not { Blocks: true } && antiCheat != AntiCheat.None   // a recording its anti-cheat blocks
+                    : status == GameStatus.Unsupported && reshade is not { Blocks: true } && antiCheat != AntiCheat.None && !allowAntiCheat   // a recording its anti-cheat blocks
                       && check.Readiness == Readiness.NeedsRecording },
             rec, ours, exeDir, dllName, shared), rec);
     }
@@ -1372,7 +1375,8 @@ public sealed partial class ScsKiller : IScsKiller
         var elsewhere = by == null && (foreign || Foreign(RecordedAt(s.Game, rec)));
         var db = Length(Path.Combine(exeDir, "scskiller.db"));
         var offline = OfflineEntry(s.Game, s.AntiCheat, s.Engine) != null && GameVerdicts.Current.Unsupported(s.Game, s.Engine) == null;
-        return s with { RecorderOverride = o, RecorderSkip = skip, RecorderEffective = by != null ? shared : !elsewhere && RecorderWanted(o, Settings.RecordAllGames && s.NoStutter == null, skip, Frames11(s.Engine, Vendor.Caps)),
+        return s with { RecorderOverride = o, RecorderSkip = skip, AntiCheatRecordingAllowed = rec.AntiCheatRecordingAllowed,
+            RecorderEffective = by != null ? shared : !elsewhere && RecorderWanted(o, Settings.RecordAllGames && s.NoStutter == null, skip, Frames11(s.Engine, Vendor.Caps)),
             RecorderForeign = elsewhere,
             RecorderNote = _recorderNotes.GetValueOrDefault(s.Game.Id)
                 ?? (o == RecorderOverride.Off && rec.RecorderOrphans.Any(File.Exists) ? ModRemovedNote : null), RecorderMod = by != null ? null : ModName(exeDir, rec, proxy, dllName),
@@ -1382,7 +1386,7 @@ public sealed partial class ScsKiller : IScsKiller
             RecordingPaused = ours && DbCap(s.Game) is { } cap && db >= cap,
             OfflineEligible = offline, OfflineRecord = rec.OfflineRecord,
             OfflineRunning = OfflineLive(s.Game.Id) || rec.OfflineSession != null,
-            RiskEligible = !offline && RiskOffered(s), RiskNoLaunch = !offline && RiskOfferedButLaunch(s.Game, s.Engine, s.AnyAntiCheat) && !StoreLaunches(s.Game), SessionNote = _sessionNotes.GetValueOrDefault(s.Game.Id) };
+            RiskEligible = !offline && !(rec.AntiCheatRecordingAllowed && o == RecorderOverride.On) && RiskOffered(s), RiskNoLaunch = !offline && RiskOfferedButLaunch(s.Game, s.Engine, s.AnyAntiCheat) && !StoreLaunches(s.Game), SessionNote = _sessionNotes.GetValueOrDefault(s.Game.Id) };
     }
 
     static long Length(string path) => new FileInfo(path) is { Exists: true } f ? f.Length : 0;
@@ -1939,7 +1943,7 @@ public sealed partial class ScsKiller : IScsKiller
         if (!fresh && hit!.AntiCheat != AntiCheat.None && VerdictMoved(g, hit)) fresh = true;
         if (!fresh)
         {
-            if (hit!.AntiCheat != AntiCheat.None) TakeOutNow(g, $"{hit.AntiCheat} found");
+            if (hit!.AntiCheat != AntiCheat.None && !DirectAllowed(rec)) TakeOutNow(g, $"{hit.AntiCheat} found");   // NoACGate: a game the user allowed keeps its recorder
             else if (_unknown.ContainsKey(g.Id)) return hit with { AntiCheat = AntiCheat.Other };   // walked again by the pass, not by every evaluation
             else
             {
@@ -4449,10 +4453,18 @@ public sealed partial class ScsKiller : IScsKiller
         return GameFiles.DetectAntiCheat(g);
     }
 
+    /// <summary>NoACGate: this game's own permission for the plain recorder beside its anti-cheat, and its switch on
+    /// (<see cref="RecorderOverride.On"/>). Settings.RecordAntiCheatGames alone sends a game down the risk-session path, which
+    /// binds the recorder to one pid (<see cref="BoundTo"/>): a launcher that starts the game again never loads it.</summary>
+    public static bool AntiCheatDirect(GameState s) => s.AntiCheatRecordingAllowed && s.RecorderOverride == RecorderOverride.On;
+
+    /// <summary>The same permission on the record (<see cref="SetAntiCheatRecording"/>), for the paths that run before a state is built.</summary>
+    internal static bool DirectAllowed(GameRecord rec) => rec.AntiCheatRecordingAllowed && rec.Recorder == RecorderOverride.On;
+
     /// <summary>Null = compatible. Writability is only known by writing (Reconcile remembers a refusal), except WindowsApps.
     /// <paramref name="modSkip"/>: <see cref="ModSkip"/>.</summary>
     public static string? RecorderSkip(GameState s, string? modSkip) =>
-        s.AnyAntiCheat ? SkipAntiCheat
+        s.AnyAntiCheat && !AntiCheatDirect(s) ? SkipAntiCheat
         : RecorderCrashes(s.Game) ? SkipCrashes
         : s.ShaderModBlocks ? SkipShaderMod
         : s.RootUnconfirmed ? SkipManual
@@ -4964,6 +4976,7 @@ public sealed partial class ScsKiller : IScsKiller
             if (Unconfirmed(s.Game) && value == RecorderOverride.On) return;   // not before its folder is confirmed; Off takes one out
             var rec = Store.LoadGame(gameId);
             if (value == RecorderOverride.On) Claim(s.Game, rec);
+            else rec.AntiCheatRecordingAllowed = false;   // NoACGate: the permission is the plain recorder's, so it goes with it (Reconcile takes it out again)
             rec.Recorder = value;
             Store.SaveGame(gameId, rec);
             if (!Reconcile(s)) Refresh(s.Game);   // the override shows either way
@@ -4971,6 +4984,28 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     static bool Chained(string dir) => new[] { ChainName, ChainName11, AgsRealName }.Any(n => File.Exists(Path.Combine(dir, n)));
+
+    /// <summary>NoACGate: the per-game permission for the plain recorder beside the game's anti-cheat. On also turns the
+    /// game's switch on (<see cref="RecorderOverride.On"/>) and claims its folder; the recorder is reconciled as for a game
+    /// whose folders SCSKiller found clean (no pid binding, so a store launcher's re-launch loads it).</summary>
+    public void SetAntiCheatRecording(string gameId, bool on)
+    {
+        lock (_recorderLock)
+        {
+            var s = Find(gameId);
+            if (on && Unconfirmed(s.Game)) return;   // not before its folder is confirmed
+            var rec = Store.LoadGame(gameId);
+            if (on)
+            {
+                Claim(s.Game, rec);
+                rec.AntiCheatRecordingAllowed = true;
+                rec.Recorder = RecorderOverride.On;
+            }
+            else rec.AntiCheatRecordingAllowed = false;   // Reconcile takes the recorder out of an anti-cheat game again
+            Store.SaveGame(gameId, rec);
+            if (!Reconcile(s)) Refresh(s.Game);
+        }
+    }
 
     /// <summary>Each file the record placed in <paramref name="dir"/> is there with the bytes it records, and the folder's
     /// scskiller.ini with a hash this data folder's entry tracks and the installed copy's doesn't (read only): what another
@@ -5463,13 +5498,16 @@ public sealed partial class ScsKiller : IScsKiller
         var antiCheat = AntiCheat.None;
         var late = false;
         Exception? failed = null;
+        // NoACGate: the user allowed the plain recorder beside this game's anti-cheat, so the ini goes in and the install
+        // finishes as for a game whose folders are clean (the verdict is still found and shown)
+        bool direct = DirectAllowed(rec);
         try
         {
             rec.RecorderFiles[name] = Sha256(dll);
             InstallStep?.Invoke("copied");
             antiCheat = GameFiles.DetectAntiCheat(g, quick: true, late: () => late = true);   // an update may have added one since the check, likely next to the exe
             if (antiCheat == AntiCheat.None && !GameFolderWrite(g)) throw new InvalidOperationException($"{g.Name} started while the recorder was installed");
-            if (antiCheat == AntiCheat.None && iniOurs)
+            if ((antiCheat == AntiCheat.None || direct) && iniOurs)
             {
                 Store.SaveGame(g.Id, rec);   // the folder and the dll on the record before the ini exists: the uninstall hook finds them
                 // changed while its entry was saved: the user's, left alone
@@ -5482,7 +5520,7 @@ public sealed partial class ScsKiller : IScsKiller
         catch (Exception e) { failed = e; }
         // the full check before anything that may wait for a lock (the keys file's, the record's)
         if (antiCheat == AntiCheat.None) antiCheat = GameFiles.DetectAntiCheat(g, late: () => late = true);
-        if (antiCheat == AntiCheat.None && failed == null)
+        if ((antiCheat == AntiCheat.None || direct) && failed == null)
             try
             {
                 InstallStep?.Invoke("keys");
@@ -5490,14 +5528,14 @@ public sealed partial class ScsKiller : IScsKiller
                 Store.SaveGame(g.Id, rec);
                 // last, after every wait: an update may have added anti-cheat while this one waited for a lock
                 antiCheat = GameFiles.DetectAntiCheat(g, late: () => late = true);
-                if (antiCheat == AntiCheat.None)
+                if (antiCheat == AntiCheat.None || direct)
                 {
                     lock (_scanLock) _scan?.Remove(g.Id);   // the next refresh evaluates the game again, its anti-cheat too
                     return;
                 }
             }
             catch (Exception e) { failed = e; }
-        if (antiCheat != AntiCheat.None)
+        if (antiCheat != AntiCheat.None && !direct)
         {
             AntiCheatFound(g, antiCheat, installing: rec, unfinished: late);
             throw AntiCheatRefusal(g, antiCheat, late);
@@ -5729,7 +5767,9 @@ public sealed partial class ScsKiller : IScsKiller
         }
         lock (_lock)
             if (_games.FindIndex(x => x.Game.Id == g.Id) is var i and >= 0 && _games[i].AntiCheat != found) _games[i] = _games[i] with { AntiCheat = found };
-        TakeOutNow(g, unfinished ? "its anti-cheat check didn't finish" : $"{found} found", installing);
+        // NoACGate: a game the user allowed the plain recorder in keeps it; the anti-cheat verdict is still recorded and shown
+        if (!((installing ?? Store.LoadGame(g.Id)) is { AntiCheatRecordingAllowed: true, Recorder: RecorderOverride.On }))
+            TakeOutNow(g, unfinished ? "its anti-cheat check didn't finish" : $"{found} found", installing);
         EndPair(g, installing);
         if (!changed) return;
         lock (_scanLock)
@@ -5798,10 +5838,12 @@ public sealed partial class ScsKiller : IScsKiller
     public Action<string>? EvaluateStep { get; set; }
 
     /// <summary>Throws when a fresh scan finds anti-cheat (or can't read the whole install), after <see cref="AntiCheatFound"/>:
-    /// an older recorder already there (an update) goes too.</summary>
+    /// an older recorder already there (an update) goes too. A game the user allowed the plain recorder in
+    /// (<see cref="DirectAllowed"/>) keeps it and goes on exactly as a clean one does; VAC is still refused.</summary>
     void RefuseAntiCheat(Game g, GameRecord rec)
     {
         if (VacCheck(g)) throw new InvalidOperationException($"{g.Name} uses VAC: a DLL in its folder could get the account banned. Not installing.");
+        if (DirectAllowed(rec)) return;
         var late = false;
         var antiCheat = GameFiles.DetectAntiCheat(g, late: () => late = true);
         if (antiCheat == AntiCheat.None) return;
@@ -5850,7 +5892,9 @@ public sealed partial class ScsKiller : IScsKiller
     /// either on.</summary>
     internal string SignedLines(Game g, GameRecord rec, bool session = false, bool riskSession = false) =>
         (AgsEligible(g, rec, risk: riskSession, ignoreLatch: session) ? "vendor=amd\r\n" : "")
-        + (session || rec.OfflineSession != null ? "" : RunIni(g, rec.BeforeAfter));
+        + (session || rec.OfflineSession != null ? "" : RunIni(g, rec.BeforeAfter))
+        // NoACGate: the proxy's admission lets the anti-cheat's markers through for this game only (never a session's ini)
+        + (session || !DirectAllowed(rec) ? "" : "allow_ac=1\r\n");
 
     /// <summary><see cref="OverlayIni"/> for a game with no anti-cheat verdict, "" otherwise: no ini turns the countdown on
     /// in a game with anti-cheat.</summary>
@@ -5922,6 +5966,7 @@ public sealed partial class ScsKiller : IScsKiller
         var (cap, next, frames, rooted, sig) = (V("max_db_bytes"), V("next"), V("frames_only"), V("root"), V("sig"));
         if (cap != null && !Long(cap) || next != null && next != chain || frames != null && frames != "1" || rooted != null && rooted != root) return false;
         var (vendor, overlay, play, tag) = (V("vendor"), V("overlay"), V("ab_play_s"), V("ab_tag"));
+        var allow = V("allow_ac");   // NoACGate: signed with the rest, so a hand-written one never matches
         var stamp = "";
         if (sig != null)
         {
@@ -5929,10 +5974,12 @@ public sealed partial class ScsKiller : IScsKiller
             if (rooted == null || sig.Length != 40 || !sig.All(char.IsAsciiHexDigitLower) || !Long(size) || !Long(time)
                 || (pid == null) != (started == null) || pid != null && (!Int(pid) || !Long(started)) || risk != null && (pid == null || risk != "1")
                 || vendor != null && vendor != "amd" || (overlay == null) != (play == null) || (overlay == null) != (tag == null)
-                || overlay != null && (overlay != "1" || !Int(play) || tag is not ("before" or "after")))
+                || overlay != null && (overlay != "1" || !Int(play) || tag is not ("before" or "after"))
+                || allow != null && allow != "1")
                 return false;
             stamp = $"exe_size={size}\r\nexe_time={time}\r\n" + (pid == null ? "" : BoundTo(int.Parse(pid), long.Parse(started!))) + (risk == null ? "" : RiskLine)
-                + (vendor == null ? "" : "vendor=amd\r\n") + (overlay == null ? "" : $"overlay=1\r\nab_play_s={play}\r\nab_tag={tag}\r\n") + $"sig={sig}\r\n";
+                + (vendor == null ? "" : "vendor=amd\r\n") + (overlay == null ? "" : $"overlay=1\r\nab_play_s={play}\r\nab_tag={tag}\r\n")
+                + (allow == null ? "" : "allow_ac=1\r\n") + $"sig={sig}\r\n";
         }
         return text == IniOf(cap, next, frames != null, rooted, stamp);
     }
@@ -8357,7 +8404,13 @@ public sealed partial class ScsKiller : IScsKiller
                     }, $"{p.Game.Name}: removing the recorder"));
             }
         }
-        foreach (var s in states.Where(s => s.AntiCheat != AntiCheat.None || vac.Contains(s.Game.Id)))
+        // NoACGate: a game the user allowed the plain recorder in keeps it this pass too (VAC is still taken out)
+        bool AllowedNow(string id)
+        {
+            try { return Store.LoadGame(id) is { AntiCheatRecordingAllowed: true, Recorder: RecorderOverride.On }; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return false; }   // unreadable: treated as not allowed
+        }
+        foreach (var s in states.Where(s => vac.Contains(s.Game.Id) || s.AntiCheat != AntiCheat.None && !AllowedNow(s.Game.Id)))
         {
             if (_removalTried.TryGetValue(s.Game.Id, out var at) && at.Elapsed < RemovalRetryInterval) continue;
             var rec = Store.LoadGame(s.Game.Id);
@@ -8613,9 +8666,9 @@ public sealed partial class ScsKiller : IScsKiller
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 
-    static readonly HashSet<string> StampKeys = new(["exe_size", "exe_time", "pid", "pid_time", "risk", "vendor", "overlay", "ab_play_s", "ab_tag", "sig"], StringComparer.OrdinalIgnoreCase);
+    static readonly HashSet<string> StampKeys = new(["exe_size", "exe_time", "pid", "pid_time", "risk", "vendor", "overlay", "ab_play_s", "ab_tag", "allow_ac", "sig"], StringComparer.OrdinalIgnoreCase);
 
-    static readonly HashSet<string> SignedLineKeys = new(["vendor", "overlay", "ab_play_s", "ab_tag"], StringComparer.OrdinalIgnoreCase);
+    static readonly HashSet<string> SignedLineKeys = new(["vendor", "overlay", "ab_play_s", "ab_tag", "allow_ac"], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>An ini line's key as GetPrivateProfileString reads it (before the first '=', blanks trimmed, any case); null
     /// for a comment, a section or a line without '='.</summary>

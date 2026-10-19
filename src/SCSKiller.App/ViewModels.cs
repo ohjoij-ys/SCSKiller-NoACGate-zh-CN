@@ -1303,7 +1303,7 @@ public sealed class DetailVm(string id) : Bindable
     bool PairFramesOnly => s.Records11 && ScsKiller.Frames11(s.Engine, App.Core.Vendor.Caps);
     public bool RecordOn => ShowOffline ? OfflineOn : !PairFramesOnly && (RecordPending ?? s.RecorderEffective);
     public bool CanToggleRecord => ShowOffline ? OfflinePending == null && !s.OfflineRunning
-        : RecordPending == null && AlongsidePending == null && NoAntiCheat && s.RecorderSkip == null && !PairFramesOnly;
+        : RecordPending == null && AlongsidePending == null && (NoAntiCheat || s.AntiCheatRecordingAllowed) && s.RecorderSkip == null && !PairFramesOnly;
     public bool ShowUseDefault => RecordPending == null && s.RecorderOverride != RecorderOverride.Default && s.RecorderSkip == null && !PairFramesOnly && !s.RecorderForeign;
     public string UseDefaultText => $"Use default ({(App.Core.Settings.RecordAllGames && s.NoStutter == null ? "on" : "off")})";
     string RecorderDll => Fmt.RecorderDll(s);
@@ -1315,7 +1315,9 @@ public sealed class DetailVm(string id) : Bindable
         ? $"{ScsKiller.AntiCheatName(s)} blocks the recorder, but you can enable it at your own risk with an offline session." + Kept
         : s.RiskNoLaunch ? ScsKiller.NoLaunchNote(Fmt.StoreName(s.Game))
         : !NoAntiCheat
-        ? $"Not available: {ScsKiller.AntiCheatName(s)} treats an extra {RecorderDll} as tampering, so this game is compiled from its files only."
+        ? s.AntiCheatRecordingAllowed
+            ? $"The recorder is in because you allowed it beside {ScsKiller.AntiCheatName(s)}: recorded as a clean game is, at your own risk." + Kept
+            : $"Not available: {ScsKiller.AntiCheatName(s)} treats an extra {RecorderDll} as tampering, so this game is compiled from its files only."
         : PairFramesOnly ? "Frame times only, for the before and after recording."
         : s.RecorderSkip == ScsKiller.SkipManual ? "Not available until you confirm the game's folder (Game folder… above): SCSKiller checks all of it for anti-cheat before it records."
         : s.RecorderSkip == ScsKiller.SkipModNotChainable ? $"Not available: {ScsKiller.NotChainableReason(s.RecorderMod, RecorderDll)}."
@@ -1331,6 +1333,19 @@ public sealed class DetailVm(string id) : Bindable
     public bool? AlongsidePending { get; set; }
     public bool AlongsideOn => AlongsidePending ?? s.RecordAlongsideMod;
     public bool CanToggleAlongside => AlongsidePending == null && RecordPending == null;
+
+    // NoACGate: this game's own permission for the plain recorder beside its anti-cheat (IScsKiller.SetAntiCheatRecording).
+    // Off by default; on, the recorder goes in as it does for a clean game (no session, no pid binding) and the verdict stays
+    // shown. Not offered for VAC: the core refuses it there whatever this says.
+    public bool HasAntiCheat => s.AntiCheat != AntiCheat.None;
+    public bool? AntiCheatRecordPending { get; set; }
+    public bool AntiCheatRecordOn => AntiCheatRecordPending ?? s.AntiCheatRecordingAllowed;
+    public bool CanToggleAntiCheatRecord => AntiCheatRecordPending == null && RecordPending == null && !s.RootUnconfirmed
+        && (s.AntiCheatRecordingAllowed || s.RecorderSkip == ScsKiller.SkipAntiCheat);   // on, or the anti-cheat is all that blocks it
+    public string AntiCheatRecordTitle => $"Record in a game with anti-cheat ({ScsKiller.AntiCheatName(s)})";
+    public string AntiCheatRecordNote => s.AntiCheatRecordingAllowed
+        ? "The recorder stays in beside the anti-cheat and records as it does for a clean game. An anti-cheat that checks the files next to its own can treat it as tampering."
+        : $"{ScsKiller.AntiCheatName(s)} treats an extra {RecorderDll} as tampering, so the game is compiled from its files only. Turned on, the recorder goes in anyway, at your own risk.";
 
     // An eligible EasyAntiCheat game (Games.OfflineEac) or an anti-cheat game allowed in Settings (RiskEligible): the card's
     // switch allows sessions, each confirmed before it starts

@@ -33,6 +33,8 @@ const string Usage = """
       record install|uninstall <game>
       record clear <game>                         delete the game's recording (the recorder's data files and SCSKiller's copy; asks first)
       record alongside <game> on|off              let the recorder chain to a mod's d3d12.dll (renamed, put back on removal)
+      record anti-cheat <game> on|off             record a game whose anti-cheat is running (no risk session, no pid binding):
+                                                  on also turns the recorder on; off takes it out again
       key <game> <hex>                            give an encrypted game's AES key (verified, stored locally only)
       index <game> --out <dir>                    debug: dump the engine reader's shader index
       rehydrate <game> <hash-only.db> --out <db> [--expect <content hash>]
@@ -430,8 +432,9 @@ int Cache()
 async Task<int> Record()
 {
     bool alongside = args.Length > 3 && args[1] == "alongside" && args[3] is "on" or "off";
-    if (!alongside && (args.Length < 3 || args[1] is not ("install" or "uninstall" or "clear")))
-        return Fail("record install|uninstall|clear <game> | record alongside <game> on|off");
+    bool direct = args.Length > 3 && args[1] == "anti-cheat" && args[3] is "on" or "off";
+    if (!alongside && !direct && (args.Length < 3 || args[1] is not ("install" or "uninstall" or "clear")))
+        return Fail("record install|uninstall|clear <game> | record alongside <game> on|off | record anti-cheat <game> on|off");
     var k = await Open();
     var g = Match(k.Games, args[2]);
     if (args[1] == "clear")
@@ -450,6 +453,16 @@ async Task<int> Record()
         var s = k.Games.Single(x => x.Game.Id == g.Game.Id);
         Console.WriteLine($"record alongside {mod ?? "a mod"}: {args[3]}; recorder {(s.RecorderInstalled ? "installed" : "not installed")}"
             + ((s.RecorderSkip == ScsKiller.SkipModNotChainable ? ScsKiller.NotChainableReason(s.RecorderMod) : s.RecorderSkip ?? s.RecorderNote) is { } why ? $" ({why})" : ""));
+        return 0;
+    }
+    if (direct)
+    {
+        if (args[3] == "on" && !g.AnyAntiCheat)
+            return Fail($"{g.Game.Name} shows no anti-cheat right now; the plain recorder is the normal way in — record install {args[2]}");
+        k.SetAntiCheatRecording(g.Game.Id, args[3] == "on");
+        var s = k.Games.Single(x => x.Game.Id == g.Game.Id);
+        Console.WriteLine($"anti-cheat recording {args[3]} for {g.Game.Name}: anti-cheat {g.AntiCheat}, recorder {(s.RecorderInstalled ? "installed" : "not installed")}"
+            + ((s.RecorderSkip ?? s.RecorderNote) is { } why ? $" ({why})" : ""));
         return 0;
     }
     if (args[1] == "install") k.InstallRecorder(g.Game.Id); else k.UninstallRecorder(g.Game.Id);
