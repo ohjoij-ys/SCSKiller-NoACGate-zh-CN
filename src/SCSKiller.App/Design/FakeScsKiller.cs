@@ -376,6 +376,7 @@ public sealed class FakeScsKiller : IScsKiller
     public void InstallRecorder(string gameId) => SetRecorderOverride(gameId, RecorderOverride.On);
     public void UninstallRecorder(string gameId) => SetRecorderOverride(gameId, RecorderOverride.Off);
     public void SetRecorderOverride(string gameId, RecorderOverride value) => SetRecorder(gameId, value);
+    public bool RecorderAcceptsAntiCheat => true;   // the design data has no dll to read
     public void SetAntiCheatRecording(string gameId, bool on)
     {
         GameState g;

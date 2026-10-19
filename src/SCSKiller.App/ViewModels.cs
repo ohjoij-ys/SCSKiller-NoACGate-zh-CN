@@ -1343,9 +1343,11 @@ public sealed class DetailVm(string id) : Bindable
     public bool CanToggleAntiCheatRecord => AntiCheatRecordPending == null && RecordPending == null && !s.RootUnconfirmed
         && (s.AntiCheatRecordingAllowed || s.RecorderSkip == ScsKiller.SkipAntiCheat);   // on, or the anti-cheat is all that blocks it
     public string AntiCheatRecordTitle => $"Record in a game with anti-cheat ({ScsKiller.AntiCheatName(s)})";
-    public string AntiCheatRecordNote => s.AntiCheatRecordingAllowed
-        ? "The recorder stays in beside the anti-cheat and records as it does for a clean game. An anti-cheat that checks the files next to its own can treat it as tampering."
-        : $"{ScsKiller.AntiCheatName(s)} treats an extra {RecorderDll} as tampering, so the game is compiled from its files only. Turned on, the recorder goes in anyway, at your own risk.";
+    public string AntiCheatRecordNote => !App.Core.RecorderAcceptsAntiCheat
+        ? $"This copy's recorder (native\\d3d12.dll) is from before the change: it refuses a game with anti-cheat whatever is written here. Replace it with the rebuilt one, then turn this on."
+        : s.AntiCheatRecordingAllowed
+            ? "The recorder stays in beside the anti-cheat and records as it does for a clean game. An anti-cheat that checks the files next to its own can treat it as tampering."
+            : $"{ScsKiller.AntiCheatName(s)} treats an extra {RecorderDll} as tampering, so the game is compiled from its files only. Turned on, the recorder goes in anyway, at your own risk.";
 
     // An eligible EasyAntiCheat game (Games.OfflineEac) or an anti-cheat game allowed in Settings (RiskEligible): the card's
     // switch allows sessions, each confirmed before it starts

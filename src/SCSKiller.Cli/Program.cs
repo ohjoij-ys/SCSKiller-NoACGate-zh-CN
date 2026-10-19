@@ -463,6 +463,8 @@ async Task<int> Record()
         var s = k.Games.Single(x => x.Game.Id == g.Game.Id);
         Console.WriteLine($"anti-cheat recording {args[3]} for {g.Game.Name}: anti-cheat {g.AntiCheat}, recorder {(s.RecorderInstalled ? "installed" : "not installed")}"
             + ((s.RecorderSkip ?? s.RecorderNote) is { } why ? $" ({why})" : ""));
+        if (args[3] == "on" && !k.RecorderAcceptsAntiCheat)
+            Console.WriteLine("warning: this copy's native\\d3d12.dll is from before allow_ac=: it will pass through in a game with anti-cheat. Replace it with the rebuilt one (see SCSKiller_NoACGate_1.3.0_移植.md).");
         return 0;
     }
     if (args[1] == "install") k.InstallRecorder(g.Game.Id); else k.UninstallRecorder(g.Game.Id);

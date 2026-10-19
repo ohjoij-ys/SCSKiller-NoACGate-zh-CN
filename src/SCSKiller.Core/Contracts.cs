@@ -628,6 +628,10 @@ public interface IScsKiller
     /// <see cref="RecorderOverride.On"/>; nothing is written for a game whose folder isn't confirmed. Off takes the
     /// recorder out of an anti-cheat game's folder again.</summary>
     void SetAntiCheatRecording(string gameId, bool on);
+    /// <summary>NoACGate: whether the recorder's native d3d12.dll this copy ships knows <c>allow_ac=</c> (the proxy's
+    /// admission). A build from before it refuses such a game whatever the app writes there, so the page says so instead of
+    /// recording nothing.</summary>
+    bool RecorderAcceptsAntiCheat { get; }
     /// <summary>"Record alongside &lt;mod&gt;" (<see cref="GameState.RecorderMod"/>): the recorder may take a mod's d3d12.dll
     /// place, the mod renamed and put back byte for byte when the recorder goes. Never throws for the game's state.</summary>
     void SetRecordAlongsideMod(string gameId, bool on);

@@ -4461,6 +4461,27 @@ public sealed partial class ScsKiller : IScsKiller
     /// <summary>The same permission on the record (<see cref="SetAntiCheatRecording"/>), for the paths that run before a state is built.</summary>
     internal static bool DirectAllowed(GameRecord rec) => rec.AntiCheatRecordingAllowed && rec.Recorder == RecorderOverride.On;
 
+    bool? _nativeAcceptsAntiCheat;
+
+    /// <summary>NoACGate: the recorder's dll this copy ships carries <c>allow_ac</c> (its admission's line, or the log it
+    /// writes for it). Read once: a d3d12.dll from before the change refuses an anti-cheat game whatever the ini says, and
+    /// the page has to say so rather than leave the user with a switch that records nothing.</summary>
+    public bool RecorderAcceptsAntiCheat
+    {
+        get
+        {
+            if (_nativeAcceptsAntiCheat is { } known) return known;
+            var found = false;
+            try { found = _proxyDll is { } p && File.Exists(p) && HasAllowAc(File.ReadAllBytes(p)); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+            return (_nativeAcceptsAntiCheat = found).Value;
+        }
+    }
+
+    static bool HasAllowAc(byte[] bytes) =>
+        // the narrow literals ("allow_ac= malformed", the log line) and the wide one ini_string reads
+        bytes.AsSpan().IndexOf("allow_ac"u8) >= 0 || bytes.AsSpan().IndexOf(System.Text.Encoding.Unicode.GetBytes("allow_ac")) >= 0;
+
     /// <summary>Null = compatible. Writability is only known by writing (Reconcile remembers a refusal), except WindowsApps.
     /// <paramref name="modSkip"/>: <see cref="ModSkip"/>.</summary>
     public static string? RecorderSkip(GameState s, string? modSkip) =>
