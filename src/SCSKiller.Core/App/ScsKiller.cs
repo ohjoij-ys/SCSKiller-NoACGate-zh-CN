@@ -1242,7 +1242,7 @@ public sealed partial class ScsKiller : IScsKiller
         var rtUnseen = NeedsRtRecording(rec.Plan?.Stats) && !rtToPlan && rec.RtUnseen && !rtSkipped;
         var rt = NeedsRtRecording(rec.Plan?.Stats) && !rtToPlan && !rec.RtUnseen && !rtSkipped;
         var unseen = rtUnseen ? "; " + RtUnseenNote : RtInlineCovers(rec.Plan?.Stats) && !rtSkipped ? "; " + RtInlineNote : "";
-        var reshade = antiCheat == AntiCheat.None ? ReShade.Detect(g) : null;   // no binary read in an anti-cheat install
+        var reshade = antiCheat == AntiCheat.None || NoAcGate(g) ? ReShade.Detect(g) : null;   // no binary read in an anti-cheat install, unless NoACGate allows it
         var shaderMod = reshade?.ShaderMod;
         if (reshade is { Blocks: true })
         {
@@ -1368,14 +1368,16 @@ public sealed partial class ScsKiller : IScsKiller
         var by = Collections.RecordedBy(s.Game.Id);   // the folder's recorder and its DLL are the collection's first game's
         var foreign = Foreign(exeDir);
         var proxy = ours || foreign;   // another copy's recorder is no mod: turning it on here takes it over
-        var skip = by != null && RecorderSkip(s, null) is not (SkipAntiCheat or SkipUnsupported or SkipNotDx12 or SkipCrashes)
-            ? SharedRecorder(Collections.Member(by)!.Value.Game.Name)
-            : RecorderSkip(s, by != null ? null : ModSkip(s.Game, exeDir, rec, proxy, dllName)) ?? _recorderSkips.GetValueOrDefault(s.Game.Id);
         var o = rec.Recorder ?? (ours ? RecorderOverride.On : RecorderOverride.Default);
+        // NoACGate: RecorderSkip asks AntiCheatDirect, which reads both of these: they go in before it is asked
+        var st = s with { RecorderOverride = o, AntiCheatRecordingAllowed = rec.AntiCheatRecordingAllowed };
+        var skip = by != null && RecorderSkip(st, null) is not (SkipAntiCheat or SkipUnsupported or SkipNotDx12 or SkipCrashes)
+            ? SharedRecorder(Collections.Member(by)!.Value.Game.Name)
+            : RecorderSkip(st, by != null ? null : ModSkip(s.Game, exeDir, rec, proxy, dllName)) ?? _recorderSkips.GetValueOrDefault(s.Game.Id);
         var elsewhere = by == null && (foreign || Foreign(RecordedAt(s.Game, rec)));
         var db = Length(Path.Combine(exeDir, "scskiller.db"));
         var offline = OfflineEntry(s.Game, s.AntiCheat, s.Engine) != null && GameVerdicts.Current.Unsupported(s.Game, s.Engine) == null;
-        return s with { RecorderOverride = o, RecorderSkip = skip, AntiCheatRecordingAllowed = rec.AntiCheatRecordingAllowed,
+        return st with { RecorderSkip = skip,
             RecorderEffective = by != null ? shared : !elsewhere && RecorderWanted(o, Settings.RecordAllGames && s.NoStutter == null, skip, Frames11(s.Engine, Vendor.Caps)),
             RecorderForeign = elsewhere,
             RecorderNote = _recorderNotes.GetValueOrDefault(s.Game.Id)
@@ -4381,11 +4383,22 @@ public sealed partial class ScsKiller : IScsKiller
             : "the ones it adds while the game draws are recorded as you play");
 
     /// <summary>The game's ReShade layer copied into the warm's work folder (<see cref="Warmer.Layer"/>), with what a warm
-    /// through it depends on; null = no add-on that changes pipelines (or anti-cheat: nothing of the install is read).</summary>
+    /// through it depends on; null = no add-on that changes pipelines (or anti-cheat: nothing of the install is read,
+    /// unless <see cref="NoAcGate"/> allows it for this game).</summary>
     public (string Dir, string Fingerprint)? LayerFor(Game g, string workDir)
     {
-        if (ScannedAntiCheat(g) != AntiCheat.None || GameFiles.DetectAntiCheat(g) != AntiCheat.None || ReShade.Detect(g) is not { Fingerprint: { } fp } r) return null;   // the status's verdict too (LayerNow)
+        if (!NoAcGate(g) && (ScannedAntiCheat(g) != AntiCheat.None || GameFiles.DetectAntiCheat(g) != AntiCheat.None)) return null;   // the status's verdict too (LayerNow)
+        if (ReShade.Detect(g) is not { Fingerprint: { } fp } r) return null;
         return (ReShade.Stage(r, Path.Combine(workDir, "layer")), fp);
+    }
+
+    /// <summary>NoACGate: the user allowed the recorder beside this game's anti-cheat, so that anti-cheat no longer keeps a
+    /// compile from reading the install's ReShade and running through a copy of it: the layer is staged in the work folder,
+    /// nothing is written beside the game and the game itself never loads it.</summary>
+    bool NoAcGate(Game g)
+    {
+        try { return Store.LoadGame(g.Id) is { AntiCheatRecordingAllowed: true }; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return false; }
     }
 
     /// <summary>NVIDIA: how the game starts Aftermath when that changes the driver's key (<see cref="NvAftermath.Of"/>), its
@@ -4442,7 +4455,7 @@ public sealed partial class ScsKiller : IScsKiller
     public const string AftermathLostReason = "NVIDIA Aftermath didn't help the last compile, the next one runs without it";
 
     /// <summary>What a warm through the game's layer depends on now (<see cref="ReShadeInstall.Fingerprint"/>); null = none.</summary>
-    string? LayerNow(Game g) => ScannedAntiCheat(g) == AntiCheat.None ? ReShade.Detect(g)?.Fingerprint : null;
+    string? LayerNow(Game g) => ScannedAntiCheat(g) == AntiCheat.None || NoAcGate(g) ? ReShade.Detect(g)?.Fingerprint : null;
 
     /// <summary>The evaluation's verdict (<see cref="LayerFor"/>'s check, cached), read now when none is. Not <see cref="Games"/>:
     /// a start's first scan evaluates a game before it's listed.</summary>
@@ -5026,6 +5039,20 @@ public sealed partial class ScsKiller : IScsKiller
             Store.SaveGame(gameId, rec);
             if (!Reconcile(s)) Refresh(s.Game);
         }
+    }
+
+    /// <summary>What SCSKiller starts the game's exe with when it starts it itself (a session at the user's own risk, an
+    /// offline one): a game added by its exe may need the arguments its own launcher passes, without which its exe exits at
+    /// once. Null or blank: none, the exe alone. Refreshes the game's state.</summary>
+    public void SetLaunchArgs(string gameId, string? args)
+    {
+        var s = Find(gameId);
+        var rec = Store.LoadGame(gameId);
+        var text = args?.Trim() is { Length: > 0 } given ? given : null;
+        if (rec.LaunchArgs == text) return;
+        rec.LaunchArgs = text;
+        Store.SaveGame(gameId, rec);
+        Refresh(s.Game);
     }
 
     /// <summary>Each file the record placed in <paramref name="dir"/> is there with the bytes it records, and the folder's
@@ -7528,7 +7555,10 @@ public sealed partial class ScsKiller : IScsKiller
         // a running compile's warm may still write its staged folder: only its own fold takes them. The gate keeps a compile from
         // starting between the check and the clear, which would leave its folders unfolded.
         lock (_foldGate)
-            if (Store.LoadGame(g.Id).D3DSCacheSince is { } since && (own || !Warming(g.Id)) && FoldStaged(g, since, Stop))
+            // The since only says which folders in D3DSCache this compile made. A folder left in d3dscache\ by a fold that
+            // couldn't put it in has no since of its own — the compile that ended with it clears it — so its own age stands in:
+            // without that, a failed fold was never tried again and its gigabytes stayed on the disk for good.
+            if ((Store.LoadGame(g.Id).D3DSCacheSince ?? WaitingSince(g)) is { } since && (own || !Warming(g.Id)) && FoldStaged(g, since, Stop))
                 AppStore.Locked(Path.Combine(Store.GameDir(g.Id), "state.json"), () =>
                 {
                     var r = Store.LoadGame(g.Id);
@@ -7579,14 +7609,23 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     /// <summary>The staged warms' own runtime cache folders made since <paramref name="since"/>, also a killed compile's, go
-    /// into the game's folder, else they wait for it in the game's <see cref="D3DSCacheWaiting"/>. False when one stays in
-    /// D3DSCache: tried again at the app's next start and the game's exit.</summary>
+    /// into the game's folder, else they wait for it in the game's <see cref="D3DSCacheWaiting"/> — where the next fold reads
+    /// them again, ahead of anything a compile made. False when one is left waiting: tried again at the app's next start and at
+    /// the game's exit.</summary>
     bool FoldStaged(Game g, DateTime since, Func<bool> stop)
     {
         var root = Path.Combine(LocalAppData, "D3DSCache");
         var waiting = Path.Combine(Store.GameDir(g.Id), D3DSCacheWaiting);
         var doubt = new List<string>();
-        var made = D3DSCache.Made(root, WorkDirs(Store.GameDir(g.Id)), since, doubt: doubt, game: g);
+        var made = D3DSCache.Made(root, WorkDirs(Store.GameDir(g.Id)), since, doubt: doubt, game: g).ToList();
+        // D3DSCache.Made reads D3DSCache alone, so a folder a fold had to leave behind was never looked at again and its
+        // gigabytes stayed on the disk for good (Wuthering Waves, 2026-10-25: 28.8 GB waiting from 10:21 and nothing trying
+        // it). They come first: they are a compile that already finished. A db a running compile still writes is open, which
+        // Opened tells apart from one that waits for its turn.
+        if (Directory.Exists(waiting) && !IsLink(waiting))
+            foreach (var d in new DirectoryInfo(waiting).EnumerateDirectories())
+                if (!IsLink(d.FullName) && d.EnumerateFiles("*.dxcache").Any() && !d.EnumerateFiles("*.dxcache").Any(f => Opened(f.FullName)))
+                    made.Insert(0, d.FullName);
         // a folder whose db can't be read now may be one of them
         var all = doubt.Count == 0;
         foreach (var d in doubt) Log?.Report($"{g.Name}: {d} couldn't be read, tried again at the next start or game exit");
@@ -7616,9 +7655,16 @@ public sealed partial class ScsKiller : IScsKiller
                     Directory.Delete(d, true);
                     Log?.Report($"{g.Name}: the compile's D3DSCache db in {Path.GetFileName(d)} is damaged, so it didn't reach the game: compiling again");
                 }
+                else if (AlreadyWaiting(d, waiting))
+                {
+                    all = false;   // it stays where it is, and the next fold takes it: nothing to move, and a move onto itself
+                                   // would leave a copy beside it (MoveFolder appends -2 to a name it finds there)
+                    Log?.Report($"{g.Name}: the compile's D3DSCache dbs still wait in {waiting}: {why}");
+                }
                 else if (!IsLink(waiting))
                 {
                     MoveFolder(d, Path.Combine(Directory.CreateDirectory(waiting).FullName, Path.GetFileName(d)));
+                    all = false;   // it waits for the next fold, so this pass didn't fold everything
                     Log?.Report($"{g.Name}: the compile's D3DSCache dbs wait in {waiting}: {why}");
                 }
                 else
@@ -7634,6 +7680,25 @@ public sealed partial class ScsKiller : IScsKiller
             }
         return all;
     }
+
+    /// <summary>The oldest folder waiting in the game's <see cref="D3DSCacheWaiting"/>: a compile that ended with its dbs
+    /// there has no D3DSCacheSince left, so its own age is what a fold is given as the since — it is older than anything this
+    /// pass could make, which is what keeps the other folders in D3DSCache out of it. Null when nothing waits.</summary>
+    DateTime? WaitingSince(Game g)
+    {
+        var waiting = Path.Combine(Store.GameDir(g.Id), D3DSCacheWaiting);
+        if (!Directory.Exists(waiting) || IsLink(waiting)) return null;
+        DateTime? oldest = null;
+        foreach (var d in new DirectoryInfo(waiting).EnumerateDirectories())
+            if (!IsLink(d.FullName) && d.EnumerateFiles("*.dxcache").Any() && (oldest == null || d.CreationTime < oldest))
+                oldest = d.CreationTime;
+        return oldest;
+    }
+
+    /// <summary>The folder is already the one it would be moved into: a folder waiting in d3dscache\ that this pass just tried.</summary>
+    static bool AlreadyWaiting(string dir, string waiting) =>
+        Path.GetDirectoryName(Path.GetFullPath(dir)) is { } parent
+        && string.Equals(parent.TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(waiting).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 
     readonly HashSet<string> _warming = [];   // under _lock: games whose warm may still write a staged folder, until its fold
     readonly Lock _foldGate = new();
@@ -7730,10 +7795,12 @@ public sealed partial class ScsKiller : IScsKiller
                 });
             return found;
         }
-        // a folder holding any db isn't emptied: another exe's, or one in doubt
+        // a folder holding any db isn't emptied: another exe's, or one in doubt. A link is no reason to refuse one: a folder
+        // with no db in it is nobody's, and a data folder on another drive keeps the game's dbs behind a junction to it — the
+        // attribute alone left the fold without a target and the cache staged for good (Wuthering Waves, 2026-10-26)
         if (rec is { D3DSCacheFolder: { } name, D3DSCacheExe: { } exe } && IsFolderName(name)
             && D3DSCache.IsGameExe(exe, g) && File.Exists(exe) && Path.Combine(root, name) is var dir
-            && (!Directory.Exists(dir) || !new DirectoryInfo(dir).Attributes.HasFlag(FileAttributes.ReparsePoint) && !Directory.EnumerateFiles(dir, "*.dxcache*").Any()))
+            && (!Directory.Exists(dir) || !Directory.EnumerateFiles(dir, "*.dxcache*").Any()))
             return (Directory.CreateDirectory(dir).FullName, exe);
         return null;
     }
@@ -7786,11 +7853,11 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var name = to;
         for (var n = 2; Directory.Exists(to) || Directory.Exists(to + Copying); n++) to = $"{name}-{n}";
-        if (string.Equals(Path.GetPathRoot(Path.GetFullPath(from)), Path.GetPathRoot(Path.GetFullPath(to)), StringComparison.OrdinalIgnoreCase))
-        {
-            Directory.Move(from, to);
-            return;
-        }
+        // the move itself decides: a root says nothing of a junction, and %LOCALAPPDATA%\SCSKiller is one (a data folder on
+        // another drive), so a folder parked in it was a move across volumes that Directory.Move can't do and reports as
+        // "access to the path is denied" — which kept a staged 40 GB from ever being parked (Wuthering Waves, 2026-10-25/26)
+        try { Directory.Move(from, to); return; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }   // another volume, or a link to one
         var tmp = Directory.CreateDirectory(to + Copying).FullName;   // never merged until whole
         foreach (var f in Directory.GetFiles(from)) File.Copy(f, Path.Combine(tmp, Path.GetFileName(f)));
         Directory.Move(tmp, to);

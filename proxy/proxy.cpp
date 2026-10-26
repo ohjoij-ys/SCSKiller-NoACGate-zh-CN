@@ -5006,6 +5006,32 @@ static HRESULT device_created(HRESULT hr, IUnknown* adapter, D3D_FEATURE_LEVEL f
     return hr;
 }
 
+// Some games load this dll only through another dll that probes the name (Steam's overlay, OptiScaler) and free it at once:
+// the module is gone again before the game asks for a device by name, and the loader then answers with System32's copy, or the
+// game creates its device through one it resolved by full path. Either way this dll was in the process for a millisecond and
+// recorded nothing (measured on Wuthering Waves, 2026-10-25). So pin it at load — the free is then a no-op — and the game's
+// own creation finds it, as with any other game. The thread is the fallback for a renderer that never asks by name: it waits
+// out a game that does, then takes the device vtable (which every device of this runtime module shares) from a device of its
+// own, so CreateGraphicsPipelineState, CreatePipelineState and CreateStateObject come here without any creation passing by.
+static DWORD WINAPI hook_early(LPVOID) {
+    for (int i = 0; i < 320 && !g_admission.load(); ++i) Sleep(25);  // 8 s: a game that creates through this dll does it sooner
+    if (g_admission.load()) {
+        logf("early: the game's own creation decided first (admission %d)", g_admission.load());
+        return 0;
+    }
+    ID3D12Device* dev = nullptr;
+    const HRESULT hr = real_CreateDevice ? real_CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev)) : E_FAIL;
+    if (FAILED(hr) || !dev) {
+        logf("early: no device of our own (hr=0x%08x): the vtable waits for the game's creation", (unsigned)hr);
+        return 0;
+    }
+    void* p = dev;
+    device_created(S_OK, nullptr, D3D_FEATURE_LEVEL_11_0, &p);  // admission, then the hooks on the vtable this device shares
+    dev->Release();
+    logf("early: our own device took the runtime's vtable, before the game made one (admission %d)", g_admission.load());
+    return 0;
+}
+
 extern "C" HRESULT WINAPI Proxy_D3D12CreateDevice(IUnknown* adapter, D3D_FEATURE_LEVEL fl, REFIID riid, void** pp) {
     if (!real_CreateDevice) return E_NOTIMPL;  // loaded as d3d11.dll
     if (pp) dd_flush();  // our refs keep a released device alive, and the runtime hands out a live device again
@@ -5381,7 +5407,7 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
     const char* create_export = g_api11 ? "D3D11CreateDevice" : "D3D12CreateDevice";
     GetSystemDirectoryW(p, MAX_PATH);
     g_real = LoadLibraryW((std::wstring(p) + L"\\" + sys_dll).c_str());
-    if (!g_real) return FALSE;
+    if (!g_real) return logf("load: the system %ls can't be loaded (error %lu): this dll serves nothing", sys_dll, GetLastError()), FALSE;
     // next=<file name>: a mod's d3d12.dll (d3d11.dll) renamed next to us (the app's "record alongside"); every export goes
     // to it first. A bare file name only. If it doesn't load or has no device create, the system dll serves alone.
     wchar_t next[64];
@@ -5427,5 +5453,12 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID reserved) {
     if (mod) logf("next: %ls (the device and every export it has come from it)", next);
     else if (next_why) logf("next: %ls %s: the system %ls is used without it", wcspbrk(next, L"\\/:") ? L"(a path)" : next, next_why, sys_dll);
     ags_hooks(reserved != nullptr);
+    // A game that never calls this dll: stay for the game's device (the dll that probed the name frees this one at once) and
+    // take the device vtable from a device of our own. Not in DllMain itself: creating a device loads more dlls, which the
+    // loader lock forbids.
+    if (!g_warm && !g_api11 && !mod) {
+        pin_self();
+        if (HANDLE t = CreateThread(nullptr, 0, hook_early, nullptr, 0, nullptr)) CloseHandle(t);
+    }
     return TRUE;
 }

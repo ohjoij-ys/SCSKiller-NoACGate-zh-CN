@@ -35,6 +35,9 @@ const string Usage = """
       record alongside <game> on|off              let the recorder chain to a mod's d3d12.dll (renamed, put back on removal)
       record anti-cheat <game> on|off             record a game whose anti-cheat is running (no risk session, no pid binding):
                                                   on also turns the recorder on; off takes it out again
+      launch-args <game> [<arguments> | --clear]  what SCSKiller gives the game's exe when it starts it itself (Record while I
+                                                  play): a game added by its exe may need its launcher's arguments. No
+                                                  argument: show them. --clear: none, the exe alone
       key <game> <hex>                            give an encrypted game's AES key (verified, stored locally only)
       index <game> --out <dir>                    debug: dump the engine reader's shader index
       rehydrate <game> <hash-only.db> --out <db> [--expect <content hash>]
@@ -76,6 +79,7 @@ try
         "rewarm-stale" => await RewarmStale(args.Contains("--if-driver-changed")),
         "cache" => args.ElementAtOrDefault(1) == "clear" ? await CacheClear() : Cache(),
         "record" => await Record(),
+        "launch-args" => await LaunchArgsCmd(),
         "index" => await Index(),
         "rehydrate" => await RehydrateCommand(),
         "reference" when args.ElementAtOrDefault(1) == "export" => await ReferenceExport(),
@@ -471,6 +475,20 @@ async Task<int> Record()
     Console.WriteLine($"recorder {args[1]}ed: {Path.GetDirectoryName(g.Game.ExePath)}");
     return 0;
 }
+
+async Task<int> LaunchArgsCmd()
+{
+    if (args.Length < 2) return Fail("launch-args <game> [<arguments> | --clear]");
+    var k = await Open();
+    var g = Match(k.Games, args[1]);
+    if (args.Length > 2) k.SetLaunchArgs(g.Game.Id, args[2] == "--clear" && args.Length == 3 ? null : string.Join(' ', args[2..].Select(Quoted)));
+    // read back: the record is what a session starts the exe with
+    Console.WriteLine($"{g.Game.Name}: started with {(k.Store.LoadGame(g.Game.Id).LaunchArgs is { Length: > 0 } now ? now : "no arguments")}");
+    return 0;
+}
+
+// an argument the shell split on a space goes back in quotes: the exe's own parser would see two arguments otherwise
+static string Quoted(string arg) => arg.Contains(' ') && !arg.Contains('"') ? $"\"{arg}\"" : arg;
 
 async Task<int> AddGame()
 {

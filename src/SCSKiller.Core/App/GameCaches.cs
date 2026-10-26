@@ -39,7 +39,9 @@ public static partial class D3DSCache
             foreach (var f in files.Where(f => f.Name.EndsWith(".dxcache-wal", StringComparison.OrdinalIgnoreCase))) ReadWal(f.FullName, paths);
             return paths.Count == 0 ? null : paths.All(p => IsGameExe(p, g));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+        // one folder read wrong is doubt about that folder, never about the pass: an arithmetic fault on a db's bytes (a
+        // length past an int) and a span taken out of range were what went past here, out of the fold, and stranded 40 GB
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or OverflowException or ArgumentOutOfRangeException or OutOfMemoryException) { return null; }
     }
 
     // folder -> its dbs' names, sizes and write times, and the exe paths they hold; the WAL isn't kept
@@ -77,7 +79,8 @@ public static partial class D3DSCache
                 else if (paths == null) doubt?.Add(d.FullName);
                 else if (paths.Count > 0 && paths.All(p => Under(p) || game != null && IsGameExe(p, game) && FolderName(p) != d.Name)) found.Add(d.FullName);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { doubt?.Add(d.FullName); }
+            // as in IsGames: the folder in doubt, not the pass
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or OverflowException or ArgumentOutOfRangeException or OutOfMemoryException) { doubt?.Add(d.FullName); }
         return found;
     }
 
@@ -103,14 +106,27 @@ public static partial class D3DSCache
         return paths.Count > 0 ? paths : null;
     }
 
+    /// <summary>A db can be tens of GB (a damaged one is read whole for the paths its rows no longer give: Wuthering Waves,
+    /// 2026-10-26, 6.98 GB), more than one array holds — an array of that length is an OverflowException, which no catch here
+    /// took, so one folder stopped the fold and left 40 GB staged. Windows instead, a row at a window's edge read with the next.</summary>
     static void ReadWal(string file, HashSet<string> paths)
     {
+        const int Window = 1 << 24;    // 16 MiB a read
+        const int Overlap = 1 << 12;   // a row header before the match and its path after both fit in this
         using var s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        var bytes = new byte[s.Length];
-        s.ReadExactly(bytes);
-        var b = bytes.AsSpan();
-        for (int at = 1, i; at < b.Length && (i = b[at..].IndexOf(@":\"u8)) >= 0; at += i + 2)
-            if (char.IsAsciiLetter((char)b[at + i - 1]) && RowPath(b, at + i - 1) is { } path) paths.Add(path);
+        var length = s.Length;
+        var size = (int)Math.Min(length, Window + 2L * Overlap);   // a small db or WAL is still read in one go
+        if (size == 0) return;
+        var buf = new byte[size];
+        for (long start = 0; start < length; start += Window)
+        {
+            var from = Math.Max(0, start - Overlap);
+            var b = buf.AsSpan(0, (int)Math.Min(size, length - from));
+            s.Position = from;
+            s.ReadExactly(b);
+            for (int at = 1, i; at < b.Length && (i = b[at..].IndexOf(@":\"u8)) >= 0; at += i + 2)
+                if (char.IsAsciiLetter((char)b[at + i - 1]) && RowPath(b, at + i - 1) is { } path) paths.Add(path);
+        }
     }
 
     /// <summary>The exe path an app_id record holds at <paramref name="at"/>: its header ends right there, the id (a rowid alias)
@@ -206,8 +222,10 @@ public static partial class D3DSCache
     /// game's earlier versions each have a folder too): the one written last.</summary>
     public static (string Dir, string Exe)? GameFolder(string root, Game g)
     {
-        foreach (var d in FoldersOf(root, g).Select(d => new DirectoryInfo(d)).Where(d => !d.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                     .OrderByDescending(d => d.LastWriteTimeUtc))
+        // a folder that is a link is judged by what it holds, not by the attribute: FoldersOf kept only those whose dbs name the
+        // game's exe alone and the name is that exe's CRC, so a data folder on another drive (D3DSCache\<crc> made a junction to
+        // it) is the game's folder all the same — refusing it kept the fold from ever finding one (Wuthering Waves, 2026-10-26)
+        foreach (var d in FoldersOf(root, g).Select(d => new DirectoryInfo(d)).OrderByDescending(d => d.LastWriteTimeUtc))
             // a staged db named for the game but not moved yet sits in a folder the runtime named for another exe
             if (ExePaths(d.FullName) is { Count: 1 } exe && File.Exists(exe.Single()) && FolderName(exe.Single()) == d.Name) return (d.FullName, exe.Single());
         return null;
@@ -255,7 +273,7 @@ public static partial class D3DSCache
         {
             if (Held(f)) continue;
             if (sqlite3_open_v2(f, out var db, 0x01 /* READONLY */, 0) != 0) { sqlite3_close_v2(db); continue; }
-            try { if (Text(db, "pragma quick_check") != "ok") return true; }
+            try { if (!Whole(db, "main")) return true; }
             finally { sqlite3_close_v2(db); }
         }
         return false;
@@ -293,12 +311,13 @@ public static partial class D3DSCache
         if (Held(from) || Held(from + "-wal")) return "the compile's db is open in another process";
         var copy = !File.Exists(to);
         if (!Open(from, out var src)) return "the compile's db can't be opened";
+        Tune(src);   // ours alone here (Held said so above): mapped and cached reads
         try
         {
             long busy = -1;
             // the copy takes the main file only: every WAL frame must be in it
             if (copy && (!Rows(src, "pragma wal_checkpoint(TRUNCATE)", st => busy = sqlite3_column_int64(st, 0)) || busy != 0)) return "the compile's db WAL can't be checkpointed";
-            if (Text(src, "pragma quick_check") != "ok" || Text(src, string.Format(SchemaSql, "main")) is not { } schema
+            if (!Whole(src, "main") || Text(src, string.Format(SchemaSql, "main")) is not { } schema
                 || !schema.Contains("keys:") || !schema.Contains("vals:") || !schema.Contains("app_id:")) return "the compile's db fails SQLite's check";
         }
         finally { sqlite3_close_v2(src); }
@@ -355,6 +374,7 @@ public static partial class D3DSCache
         }
         if (Held(to) || Held(to + "-wal")) return "the game's db is open in another process";
         if (!Open(to, out var t)) return "the game's db can't be opened";
+        Tune(t);   // the exclusive lock below makes it ours: mapped and cached reads
         // the game started: the next step fails with SQLITE_INTERRUPT, which rolls the transaction back and frees the db
         // an exception can't cross SQLite's native frames: a check that throws lets the merge go on
         Progress? check = stop == null ? null : _ =>
@@ -370,13 +390,21 @@ public static partial class D3DSCache
             // No busy timeout: the dbs wait for the next try.
             TestPause();
             if (!Exec(t, "pragma main.locking_mode=exclusive") || !Exec(t, "select count(*) from main.sqlite_master")) return "the game's db is in use by another process";
+            // The rows go in in batches, not in one transaction: in WAL every page a transaction dirties waits in the -wal file
+            // until its commit ends it, so one transaction over the whole staged db asks for as much free space again as the
+            // staged db itself — measured on Wuthering Waves, 2026-10-25: 7,543,063 pages staged into a db of 4,135,298, ~31 GiB
+            // of -wal beside it, which was more than the disk had, and "the rows couldn't be written" twice. A batch commits as it
+            // goes and that commit checkpoints it back into the db, so the peak is one batch (200,000 rows, well under a
+            // gigabyte) and a merge cut down midway loses only what it hadn't committed: the next fold picks it up, every
+            // insert asking for the rows that aren't there yet. (The journal stays on: unlike a journal that is turned off, a
+            // batch that fails rolls back, so a stopped merge never leaves the game's db half written.)
             if (!Exec(t, $"attach database {Quote(from)} as s")) return "the compile's db can't be attached";
             var schema = Text(t, string.Format(SchemaSql, "main"));
             if (schema == null || schema != Text(t, string.Format(SchemaSql, "s"))) return "the game's db has another schema";
             if (schema.Contains("compiler_id:") && (Text(t, string.Format(CompilerSql, "main")) is not { Length: > 0 } mine || mine != Text(t, string.Format(CompilerSql, "s")))) return "the game's db names another compiler";
             if (stop?.Invoke() == true) return GameStarted;
             if (!Exec(t, "begin immediate")) return "the game's db is locked";
-            var refused = Text(t, "pragma main.quick_check") != "ok" ? "the game's db fails SQLite's check"
+            var refused = !Whole(t, "main") ? "the game's db fails SQLite's check"
                 : Text(t, $"select count(*) from main.app_id where exe_path is not {Quote(exe)}") != "0" ? "the game's db names another exe"
                 // made under an earlier registration: the game's next start empties it, the rows go in after that
                 // a rule never changes a db the game's runtime wrote: its rows go in only where it holds the rule's identity
@@ -388,14 +416,45 @@ public static partial class D3DSCache
                 Rollback(t);
                 return refused;
             }
-            const string fresh = "s.keys where key not in (select key from main.keys)";
+            // the stamp the checks above write goes in with them: the rows follow in batches of their own
+            if (!Exec(t, "commit"))
+            {
+                var said = LastError(t);
+                Rollback(t);
+                return $"the game's db can't be written ({said})";
+            }
+            const int Batch = 200_000;
+            string? InBatches(string table, Func<long, long, string> sql)
+            {
+                long low = 0, high = -1;
+                if (!Rows(t, $"select min(rowid), max(rowid) from s.{table}",
+                        st => (low, high) = (sqlite3_column_int64(st, 0), sqlite3_column_int64(st, 1))))
+                    return $"the compile's {table} can't be read ({LastError(t)})";
+                for (var first = low; first <= high; first += Batch)
+                {
+                    if (stop?.Invoke() == true) return GameStarted;
+                    if (!Exec(t, "begin immediate")) return "the game's db is locked";
+                    if (!Exec(t, sql(first, first + Batch - 1)))
+                    {
+                        var said = LastError(t);
+                        Rollback(t);
+                        return $"the rows couldn't be written ({said})";
+                    }
+                    if (!Exec(t, "commit"))
+                    {
+                        var said = LastError(t);
+                        Rollback(t);
+                        return $"the rows couldn't be written ({said})";
+                    }
+                }
+                return null;
+            }
             // groups stay out: no driver writes them yet
-            if (Exec(t, $"insert into main.keys(key, last_accessed) select key, last_accessed from {fresh}")
-                && Exec(t, "insert into main.vals(keyid, type, value) select m.keyid, v.type, v.value from s.keys k join s.vals v on v.keyid = k.keyid "
-                    + "join main.keys m on m.key = k.key where not exists (select 1 from main.vals x where x.keyid = m.keyid and x.type = v.type)")
-                && stop?.Invoke() != true && Exec(t, "commit")) return null;
-            Rollback(t);
-            return stop?.Invoke() == true ? GameStarted : "the rows couldn't be written";
+            return InBatches("keys", (first, last) => "insert into main.keys(key, last_accessed) select key, last_accessed from s.keys "
+                    + $"where rowid between {first} and {last} and key not in (select key from main.keys)")
+                ?? InBatches("vals", (first, last) => "insert into main.vals(keyid, type, value) select m.keyid, v.type, v.value from s.keys k "
+                    + $"join s.vals v on v.keyid = k.keyid join main.keys m on m.key = k.key where v.rowid between {first} and {last} "
+                    + "and not exists (select 1 from main.vals x where x.keyid = m.keyid and x.type = v.type)");
         }
         finally
         {
@@ -534,6 +593,30 @@ public static partial class D3DSCache
         return false;
     }
 
+    /// <summary>Reads a db's pages through a memory mapping, and keeps the ones read again in the heap. Windows then faults in
+    /// read-ahead runs of the file instead of one 4 KB read per page at a queue depth of 2 (measured on a 15.6 GB cache: 3,600
+    /// reads a second, 4 KB each, 0.5 ms, a fold at 220 MB/s), and the b-tree's upper pages, read again at every insert, stay
+    /// in memory. Set only once a db is ours alone: a mapping outlives a file another process truncates, as a fault, not an
+    /// error. Builds cap the mapping (SQLITE_MAX_MMAP_SIZE, 2 GB by default) and silently map less.</summary>
+    static void Tune(nint db)
+    {
+        Exec(db, "pragma mmap_size=2147483648");   // 2 GB: as much as a default build maps of a db
+        Exec(db, "pragma cache_size=-262144");     // 256 MB, KiB
+    }
+
+    /// <summary>False when a db has lost its header, its schema or the pages a compile closed it with. SQLite's own check reads
+    /// every page of it — 15.6 GB of 4 KB reads, run on the game's cache before every merge of a staged db — so the dbs too big
+    /// to read at once get their first pages read instead; SCSKILLER_D3DSCACHE_QUICK_CHECK=1 checks every one of them.</summary>
+    static bool Whole(nint db, string schema)
+    {
+        long pages = 0, size = 0;
+        var known = Rows(db, $"pragma {schema}.page_count", st => pages = sqlite3_column_int64(st, 0))
+            && Rows(db, $"pragma {schema}.page_size", st => size = sqlite3_column_int64(st, 0)) && pages > 0 && size > 0;
+        if (!known || pages * size <= (256L << 20) || Environment.GetEnvironmentVariable("SCSKILLER_D3DSCACHE_QUICK_CHECK") == "1")
+            return Text(db, $"pragma {schema}.quick_check") == "ok";
+        return Text(db, $"select count(*) from {schema}.sqlite_master") is { } tables && tables != "0";
+    }
+
     static string Immutable(string file) =>
         "file:" + file.Replace('\\', '/').Replace("%", "%25").Replace("#", "%23").Replace("?", "%3f") + "?immutable=1";
 
@@ -546,6 +629,10 @@ public static partial class D3DSCache
         string? text = null;
         return Rows(db, sql, st => text = Marshal.PtrToStringUTF8(sqlite3_column_text(st, 0)) ?? "") ? text : null;
     }
+
+    /// <summary>SQLite's own words for this connection's last failure. <see cref="Exec"/> answers only true or false, so a step
+    /// that fails is asked here before anything else runs on the connection: "disk I/O error", "database or disk is full".</summary>
+    static string LastError(nint db) => Marshal.PtrToStringUTF8(sqlite3_errmsg(db)) ?? "";
 
     /// <summary>Runs <paramref name="sql"/> on the SQLite db <paramref name="file"/>, read only and as it is on disk (immutable); false
     /// when it isn't a readable db or the query fails.</summary>
@@ -576,6 +663,7 @@ public static partial class D3DSCache
     [DllImport("winsqlite3.dll")] static extern long sqlite3_column_int64(nint stmt, int col);
     [DllImport("winsqlite3.dll")] static extern int sqlite3_finalize(nint stmt);
     [DllImport("winsqlite3.dll")] static extern void sqlite3_progress_handler(nint db, int ops, Progress? check, nint arg);
+    [DllImport("winsqlite3.dll")] static extern nint sqlite3_errmsg(nint db);
 }
 
 /// <summary>Unreal's user pipeline cache, <c>&lt;Saved&gt;\&lt;Project&gt;_&lt;ShaderPlatform&gt;.upipelinecache</c>. Saved's place varies

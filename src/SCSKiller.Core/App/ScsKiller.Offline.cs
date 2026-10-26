@@ -281,7 +281,7 @@ public sealed partial class ScsKiller
                         ?? throw new InvalidOperationException("its cleanup helper didn't start");
                 }
                 if (manual)
-                    process = StartAttested(g.ExePath, OfflineArguments, (h, pid, started) =>
+                    process = StartAttested(g.ExePath, LaunchLine(rec.LaunchArgs, OfflineArguments), (h, pid, started) =>
                     {
                         _offline[gameId] = h;
                         Publish(IniText(g, rec, Signed(g.ExePath, RootValue(g), stamp!, BoundTo(pid, started) + RiskLine + SignedLines(g, rec, session: true, riskSession: true))),
@@ -481,7 +481,7 @@ public sealed partial class ScsKiller
                     using var helper = Process.Start(new ProcessStartInfo(CleanupHelper, [CleanupArg, gameId]) { UseShellExecute = false, CreateNoWindow = true })
                         ?? throw new InvalidOperationException("its cleanup helper didn't start");
                 }
-                process = StartAttested(g.ExePath, OfflineArguments, (h, pid, started) =>
+                process = StartAttested(g.ExePath, LaunchLine(rec.LaunchArgs, OfflineArguments), (h, pid, started) =>
                 {
                     _offline[gameId] = h;
                     var ini = IniText(g, rec, Signed(g.ExePath, RootValue(g), stamp!, BoundTo(pid, started) + SignedLines(g, rec, session: true)));
@@ -521,6 +521,11 @@ public sealed partial class ScsKiller
 
     /// <summary>scskiller.ini's lines that bind the recorder to one process: its pid and creation FILETIME.</summary>
     internal static string BoundTo(int pid, long created) => $"pid={pid}\r\npid_time={created}\r\n";
+
+    /// <summary>What the game's own launcher gives its exe (<see cref="GameRecord.LaunchArgs"/>), then what the session adds:
+    /// an added game whose exe starts a launcher only with its arguments needs them here too.</summary>
+    internal static string LaunchLine(string? launchArgs, string session) =>
+        (launchArgs?.Trim() is { Length: > 0 } own ? own + " " : "") + session;
 
     static string Hex(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 

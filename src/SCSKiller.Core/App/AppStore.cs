@@ -109,6 +109,7 @@ public sealed class GameRecord
     public bool RecorderRollback { get; set; }               // a failed install couldn't take the proxy out: the next reconcile does
     public bool RecorderClaimed { get; set; }                // taken over from another copy: its recorder is replaced by this build's, even a newer build's
     public bool AntiCheatRecordingAllowed { get; set; }       // NoACGate: the plain recorder is allowed beside this game's anti-cheat (per game, off by default)
+    public string? LaunchArgs { get; set; }                  // what SCSKiller starts the game's exe with, as its launcher does (an added game whose exe needs them); null = none
     public bool OfflineRecord { get; set; }                  // opt-in: offline sessions without EasyAntiCheat may be started (Games.OfflineEac)
     public OfflineSession? OfflineSession { get; set; }      // one was started and its folder isn't back to how it was yet
     public bool KeysPending { get; set; }                    // the keys file wasn't rewritten while the game ran: the next refresh or reconcile does
