@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Security.Principal;
 using System.Text.Json;
 using CUE4Parse.Compression;
@@ -10,17 +10,17 @@ using SCSKiller.Core.Vendors;
 const string Usage = """
     usage: scskiller <command>
       scan [--rescan]                             扫描游戏并显示状态（--rescan：重新检测引擎）
-      add <exe> [<安装目录>]                       添加平台未收录的游戏，指定它的 exe（带目录：录制器可以放进去）
+      add <exe> [<安装目录>]                      添加平台未收录的游戏，指定它的 exe（带目录：录制器可以放进去）
       status [游戏]                               列出所有游戏，或显示某个游戏的详情
       compile <游戏|--all-ready> [--threads N] [--idle | --when-idle] [--careful | --fast]
                                                   --idle：后台优先级；--when-idle：并且只在没人用电脑时进行；
                                                   --careful（AMD）：本次及之后编译该游戏时，分批在少量线程上编译它录制到的
                                                   管线，让驱动保留更多结果（更慢）；--fast：恢复为单趟编译
-      queue [命令]                                 编译队列的调试外壳：先给命令，再从标准输入逐行给参数：
+      queue [命令]                                编译队列的调试外壳：先给命令，再从标准输入逐行给参数：
                                                   list | add <游戏> | move <游戏> <位置> | remove <游戏> | start | stop | wait | quit
       rewarm-stale [--if-driver-changed]          计划任务运行的内容；遵循驱动更新设置
       cache get | cache set <GB|unlimited|default>
-      cache clear <游戏> [--game-precache]         删除该游戏的着色器缓存：驱动、Windows（D3DSCache）（会先确认）；
+      cache clear <游戏> [--game-precache]        删除该游戏的着色器缓存：驱动、Windows（D3DSCache）（会先确认）；
                                                   --game-precache：连游戏自己写的缓存一起删（*.ushaderprecache、
                                                   Dawn 的 bin\pipelineLibrary.cache、RE Engine 的 shader.cache2 与
                                                   piplinelist.bin、GTA V Enhanced 和 HELLDIVERS 2 的管线库），
@@ -34,16 +34,16 @@ const string Usage = """
       record alongside <游戏> on|off              允许录制器串接到某个 mod 的 d3d12.dll（改名接入，移除时还原）
       record anti-cheat <游戏> on|off             录制反作弊正在运行的游戏（不开风险会话、不绑定 pid）：
                                                   on 同时开启录制器；off 再把它移除
-      launch-args <游戏> [<参数> | --clear]        SCSKiller 自己启动游戏 exe 时传入的参数（“游玩时录制”）：手动添加的
+      launch-args <游戏> [<参数> | --clear]       SCSKiller 自己启动游戏 exe 时传入的参数（“游玩时录制”）：手动添加的
                                                   游戏可能需要它启动器的参数。不带参数：显示当前值。--clear：清空，只启 exe
       key <游戏> <hex>                            设置加密游戏的 AES 密钥（会先校验，只保存在本机）
-      index <游戏> --out <目录>                    调试：导出引擎读取器解析出的着色器索引
+      index <游戏> --out <目录>                   调试：导出引擎读取器解析出的着色器索引
       rehydrate <游戏> <hash-only.db> --out <db> [--expect <内容哈希>]
                                                   从本机安装补上 hash-only 录制所引用的着色器字节
-      reference export <游戏> [--out <文件>]       导出该游戏版本的着色器清单，供社区服务的 `admin reference import` 使用：
+      reference export <游戏> [--out <文件>]      导出该游戏版本的着色器清单，供社区服务的 `admin reference import` 使用：
                                                   索引里的着色器，以及本机录制见过的那些（默认 <游戏 id>.reference.json）
       task register|unregister                    登录/空闲时运行的“驱动更新后需要重新预编译”任务
-      fetch-codecs <目录>                          打包用：把固定版本的 Oodle/zlib DLL 下载到 <目录>（缺了才下载）
+      fetch-codecs <目录>                         打包用：把固定版本的 Oodle/zlib DLL 下载到 <目录>（缺了才下载）
       --version                                   命令行的版本
     <游戏> 可以是 id（steam:2909400），也可以是游戏名的一部分（不区分大小写）。
     """;
