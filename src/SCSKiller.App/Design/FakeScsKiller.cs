@@ -178,7 +178,7 @@ public sealed class FakeScsKiller : IScsKiller
                 { AntiCheat = AntiCheat.Other, Engine = new EngineInfo("Unity", "2019.4", null, "D3D12", false, null), RiskNoLaunch = true },
             G("293760", "Automation", "4.27", "Automation-Win64-Shipping.exe", null, GameStatus.Unsupported, packed, unsupported: packed, at: "gog"),
             // guesses: the version (no build string, no .utoc, no readable package), the DirectX (no DefaultGraphicsRHI), both
-            G("CoffeeStainStudios.DeepRockGalactic", "Deep Rock Galactic", "4.27", "FSD-WinGDK-Shipping.exe", 18_350, GameStatus.Ready, "compiles every DirectX 11 shader", at: "xbox")
+            G("CoffeeStainStudios.DeepRockGalactic", "Deep Rock Galactic", "4.27", "FSD-WinGDK-Shipping.exe", 18_350, GameStatus.Ready, "编译所有 DirectX 11 着色器", at: "xbox")
                 with { Engine = new EngineInfo("Unreal", "4.27", null, "D3D11", false, null, VersionGuessed: true, ApiGuessed: true), ApiDetected = "D3D11" },
             G("3900010", "Harbor Lights", "5.3", "Harbor-Win64-Shipping.exe", 44_120, GameStatus.Ready, Core.Planning.Planner.NoRecording)
                 with { Engine = new EngineInfo("Unreal", "5.3", null, "D3D12", false, null, VersionGuessed: true) },

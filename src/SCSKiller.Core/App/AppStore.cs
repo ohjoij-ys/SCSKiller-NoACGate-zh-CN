@@ -23,7 +23,7 @@ public sealed class GameRecord
     public int? WarmedReaderVersion { get; set; }            // PlanReaderVersion of the plan the last complete warm replayed
     public string? PlanRules { get; set; }                   // RulesFile.Hash of the rules the plan was built with; null = the embedded rules
     public string? WarmedPlanRules { get; set; }             // PlanRules of the plan the last complete warm replayed
-    public string? IdleHeldBack { get; set; }                // DriverId|RulesFile.Hash a "when idle" warm was held back for (ScsKiller.RulesGrew); null = none
+    public string? IdleHeldBack { get; set; }                // DriverId|RulesFile.Hash a "空闲时" warm was held back for (ScsKiller.RulesGrew); null = none
     public string? PlanItems { get; set; }                   // ScsKiller.PlanFingerprint of plan.bin's records (null: not taken, or not readable)
     public string? WarmedPlanItems { get; set; }             // PlanItems of the plan the last complete warm replayed
     public string? PlanKeysFile { get; set; }                // the plan's planner-made pipelines (KeyFiles), in the game's folder; null = not kept
@@ -139,7 +139,7 @@ public sealed class GameRecord
     public NewShadersMode? NewShaders { get; set; }         // the game page's override of Settings.OnNewShaders; null = the global setting
     public bool? Maximum { get; set; }                      // Maximum mode for this game alone (ScsKiller.SetGameMaximum); null = Settings.MaximumPlans
     public bool? RayTracing { get; set; }                   // ray tracing state objects and collections for this game (ScsKiller.SetGameRayTracing); null = Settings.CompileRayTracing
-    public bool LeftOutOfAddAll { get; set; }               // "Add all ready" skips the game (ScsKiller.SetGameLeftOutOfAddAll)
+    public bool LeftOutOfAddAll { get; set; }               // "全部加入就绪项" skips the game (ScsKiller.SetGameLeftOutOfAddAll)
     public bool Hidden { get; set; }                        // removed from the library by the user: never listed again until shown (ScsKiller.HideGame)
     public bool PlanRayTracing { get; set; } = true;        // the plan was built with them (ScsKiller.RayTracing); true for a record from before the setting
     public bool WarmedRayTracing { get; set; } = true;      // PlanRayTracing of the plan the last complete warm replayed
@@ -481,7 +481,7 @@ public sealed class AppStore(string dataDir)
         var plain = gameId.Replace(':', '_');
         var dir = Path.Combine(games, IsPlainName(plain) ? plain : EncodedPrefix + Segment(gameId));
         if (!string.Equals(Path.GetDirectoryName(Path.GetFullPath(dir)), Path.GetFullPath(games), StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException($"game id {gameId} isn't a folder name");
+            throw new ArgumentException($"游戏 ID {gameId} 不是合法的目录名");
         return dir;
     }
 

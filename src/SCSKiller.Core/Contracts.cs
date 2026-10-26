@@ -159,7 +159,7 @@ public interface IGpuVendorBackend
     /// that differs from the wanted state. Returns the outcome for the user. Global, needs admin: callers must have the
     /// user's explicit OK.</summary>
     string SetAutoShaderCompilation(AutoShaderCompilation level) =>
-        throw new NotSupportedException($"Auto Shader Compilation is an NVIDIA feature ({Gpu.Name})");
+        throw new NotSupportedException($"自动着色器编译是 NVIDIA 的功能（{Gpu.Name}）");
 }
 
 /// <summary>NVIDIA App's Automatic Shader Compilation: Off, or on with that "System Utilization" (the App's default is Medium).</summary>
@@ -254,7 +254,7 @@ public sealed record WarmOptions(int Threads, WarmPriority Priority, long StartA
 /// build, built at run time, a middleware DLL without it); not in <paramref name="Total"/>. Set by the app from
 /// Materialize, 0 from the warmer.</param>
 public sealed record WarmProgress(long Done, long Total, long Failed, double PerSecond, long CacheGrowthBytes = 0, long Skipped = 0,
-    string? Note = null,   // what the warm is doing besides compiling, e.g. "retrying ray tracing with fewer threads (8)"; null = nothing
+    string? Note = null,   // what the warm is doing besides compiling, e.g. "以更少线程（8）重试光追"; null = nothing
     int Workers = 0, int Threads = 0,   // the threads the warm's memory budget lets run now, of the ones asked for; 0 = not reported
     long DriverSkipped = 0);   // see WarmResult.DriverSkipped
 public enum WarmOutcome { Completed, Stopped, Failed }
@@ -343,8 +343,8 @@ public sealed record GameState(
     bool RtToPlan = false,             // its plan asks for a ray tracing recording and a newer recording waits for the plan check (ScsKiller.RtPlanCheck)
     bool RtSkipped = false,            // its compiles leave ray tracing state objects and collections out (Settings.CompileRayTracing or RayTracingOverride)
     bool? RayTracingOverride = null,   // the game page's override of Settings.CompileRayTracing; null = the global setting
-    bool LeftOutOfAddAll = false,      // the game page's "Leave out of Add all ready" (GameRecord.LeftOutOfAddAll)
-    bool RecordedEnough = false,       // GameRecord.RecordedLong: asking for "5 minutes" again says nothing
+    bool LeftOutOfAddAll = false,      // the game page's "不参与“全部加入就绪项”" (GameRecord.LeftOutOfAddAll)
+    bool RecordedEnough = false,       // GameRecord.RecordedLong: asking for "5 分钟" again says nothing
     bool OfflineEligible = false,      // an EasyAntiCheat game of Games.OfflineEac on D3D12: an offline session may be offered
     bool OfflineRecord = false,        // the user allowed offline sessions for it (IScsKiller.SetOfflineRecording)
     bool OfflineRunning = false,       // a session SCSKiller started runs, or its files aren't out of the game folder yet
@@ -510,12 +510,12 @@ public sealed record Settings(int Threads, WarmPriority Priority, DriverUpdateMo
     bool NotifyNewShaders = true,   // a notification when compiled games have new pipelines to compile (NewShaders)
     bool ActiveCheck = false,       // the anonymous daily check that counts active installs (ScsKiller.ActiveCheck), ticked in the welcome or Settings; off = nothing is sent
     bool ActiveCheckAsked = false,  // the daily check was chosen, in the welcome, its one-time question or Settings: nothing is sent before (ActiveCheck.Allowed)
-    string? GpuNoticeDismissed = null,   // the GPU name whose "doesn't compile on this GPU" notice was closed (Format.GpuNotice)
-    bool InstallUpdatesAutomatically = true,   // a downloaded update installs at the next start or quit (AutoInstall); off = only "Restart to update"
+    string? GpuNoticeDismissed = null,   // the GPU name whose "此显卡上无法编译" notice was closed (Format.GpuNotice)
+    bool InstallUpdatesAutomatically = true,   // a downloaded update installs at the next start or quit (AutoInstall); off = only "重启以更新"
     bool ScanAtStart = true,   // a scan the user didn't ask for reads every game again where it changed; off = the last list (ScsKiller.Listed)
     bool CloseQuits = false,  // the window's close button quits like the tray's Quit (WindowClose); off = it hides to the notification area
     bool RecordingLimitChosen = false,   // the user picked RecordingLimitMB: a stored 256 without it is the earlier default (ScsKiller.Settings)
-    bool TrayNoticeShown = false,   // the "still running" notification was shown (App.HideToTray): never again
+    bool TrayNoticeShown = false,   // the "仍在运行" notification was shown (App.HideToTray): never again
     bool MaxCompileConfirmed = false,   // the game page's Max compile was confirmed once (DetailPage.OnMaxCompile): never asked again
     AppTheme? Theme = null,        // the app's colours; null = Windows' setting
     NewShadersMode? OnNewShaders = null,   // null = from NotifyNewShaders: false -> Off, true -> Notify
@@ -523,7 +523,7 @@ public sealed record Settings(int Threads, WarmPriority Priority, DriverUpdateMo
     bool RecordAntiCheatGames = false,   // sessions confirmed per launch may record anti-cheat games beside their anti-cheat (IScsKiller.StartRiskSession); off clears every game's switch
     bool CompileRayTracing = true,   // off: compiles leave ray tracing state objects and collections out, unless a game's RayTracingOverride says otherwise
     bool BeforeAfter = true,          // the game page offers the before and after recording
-    bool BeforeAfterIntroSeen = false,   // its intro was shown once; "How it works" shows it again
+    bool BeforeAfterIntroSeen = false,   // its intro was shown once; "工作原理" shows it again
     bool BeforeAfterSound = true,     // a sound when a run's play time is reached
     bool BeforeAfterOverlay = true,   // the countdown drawn in the game (BeforeAfterRecord.Overlay), the intro's last choice
     bool BeforeAfterShowGpu = true,   // the report's image names the GPU
@@ -534,7 +534,7 @@ public sealed record Settings(int Threads, WarmPriority Priority, DriverUpdateMo
 
 public enum QueueStage { Waiting, Indexing, Planning, Materializing, Warming, Paused, Done, Failed, Stopped }
 public sealed record QueueItem(string GameId, QueueStage Stage, WarmProgress? Progress, string? Error,
-    string? Note = null,   // why it waits or is paused ("paused while <game> is running"); Done/Stopped: ScsKiller.WarmCounts (failed, skipped)
+    string? Note = null,   // why it waits or is paused ("<game> 运行期间暂停"); Done/Stopped: ScsKiller.WarmCounts (failed, skipped)
     bool PlanCheck = false);   // a background plan rebuild the app queued itself (ScsKiller.CheckPlans), not a compile: lists leave it out
 
 /// <summary><see cref="IScsKiller.AddManualGame"/>'s result: the added game, or the listed one the exe belongs to.</summary>

@@ -32,18 +32,18 @@ public sealed partial class CachePage : Page
 
     void OnDeleteItem(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is CacheItemRow r) _ = Confirm($"Delete {r.Name} ({r.Size})?", r.Kind, [r.Item]);
+        if ((sender as FrameworkElement)?.Tag is CacheItemRow r) _ = Confirm($"删除 {r.Name}（{r.Size}）？", r.Kind, [r.Item]);
     }
 
     void OnDeleteGroup(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.Tag is CacheGroupRow g) _ = Confirm($"Delete {g.Title} ({g.Size})?", g.Group.Kind, g.Group.Items);
+        if ((sender as FrameworkElement)?.Tag is CacheGroupRow g) _ = Confirm($"删除 {g.Title}（{g.Size}）？", g.Group.Kind, g.Group.Items);
     }
 
     void OnFreeOldDriver(object _, RoutedEventArgs __) =>
         _ = Confirm($"{Vm.FreeText} the new driver no longer uses?", CacheGroupKind.OldDriver, Vm.OldDriverItems, "Free");
 
-    async Task Confirm(string title, CacheGroupKind kind, IReadOnlyList<CacheItem> items, string action = "Delete")
+    async Task Confirm(string title, CacheGroupKind kind, IReadOnlyList<CacheItem> items, string action = "删除")
     {
         var text = new TextBlock { Text = CacheVm.Consequence(kind, items), TextWrapping = TextWrapping.Wrap };
         if (await App.ShowAsync(App.Confirm(this, title, text, action)) == ContentDialogResult.Primary) await Vm.DeleteAsync(items);
@@ -60,10 +60,10 @@ public sealed partial class CachePage : Page
     public (ContentDialog Dialog, CheckBox Others) ClearEverythingDialog(CacheInventory inv)
     {
         var warning = new TextBlock { Text = ScsKiller.EverythingWarning(inv, false), TextWrapping = TextWrapping.Wrap };
-        var others = new CheckBox { Content = $"Also delete {ScsKiller.OtherApps.ToLowerInvariant()} ({Core.App.Format.Bytes(inv.Bytes(CacheGroupKind.Unattributed))})" };
+        var others = new CheckBox { Content = $"同时删除{ScsKiller.OtherApps.ToLowerInvariant()}（{Core.App.Format.Bytes(inv.Bytes(CacheGroupKind.Unattributed))}）" };
         others.Checked += (_, _) => warning.Text = ScsKiller.EverythingWarning(inv, true);
         others.Unchecked += (_, _) => warning.Text = ScsKiller.EverythingWarning(inv, false);
-        var content = new StackPanel { Spacing = 12, Children = { warning, others, new TextBlock { Text = "Files in use are skipped.", TextWrapping = TextWrapping.Wrap } } };
-        return (App.Confirm(this, "Clear every shader cache?", content, "Clear everything"), others);
+        var content = new StackPanel { Spacing = 12, Children = { warning, others, new TextBlock { Text = "正在使用的文件会被跳过。", TextWrapping = TextWrapping.Wrap } } };
+        return (App.Confirm(this, "清除所有着色器缓存？", content, "Clear everything"), others);
     }
 }

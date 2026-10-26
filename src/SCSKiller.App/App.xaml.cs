@@ -80,7 +80,7 @@ public partial class App : Application
         {
             real.Log = new AppLog(real.Store.DataDir);
             Codecs.Log = real.Log;
-            real.Log.Report($"SCSKiller {AppVersion.Current} started on Windows {Environment.OSVersion.Version}, {real.Vendor.Gpu.Name}, driver {real.Vendor.Gpu.DriverVersion}");
+            real.Log.Report($"SCSKiller {AppVersion.Current} 已在 Windows {Environment.OSVersion.Version} 上启动，{real.Vendor.Gpu.Name}，驱动 {real.Vendor.Gpu.DriverVersion}");
             real.Community = new Community(AppStore.DefaultDir, Account.GetDbTokenAsync) { TokenWith = Account.GetTokenAsync };
             real.DbEntitled = () => Account.SignedIn && (Account.Status == null || Account.HasDb);
             real.Sharing = new Sharing(AppStore.DefaultDir, () => real.Settings.ShareRecordings);   // anonymous: never the Patreon sign-in
@@ -181,7 +181,7 @@ public partial class App : Application
                 // a compile starting clears its "waits for idle", one ending lets the games it held back compile
                 Core.QueueChanged += q => { if (q.Stage is QueueStage.Indexing or QueueStage.Done or QueueStage.Failed or QueueStage.Stopped) check.Request(); };
             }
-            if (Updater.HasResume)   // restarted by "Restart to update": the queue goes on once the games are known
+            if (Updater.HasResume)   // restarted by "重启以更新": the queue goes on once the games are known
                 _ = Core.ScanAsync(CancellationToken.None).ContinueWith(_ => Main.DispatcherQueue.TryEnqueue(Updater.ResumeQueue));
             else if (args.Contains(WindowsStartup.TrayArg))   // no window to scan: the game watcher and the notifications need the games
                 _ = Core.ScanAsync(CancellationToken.None);
@@ -282,8 +282,8 @@ public partial class App : Application
         Core.Settings = Core.Settings with { TrayNoticeShown = true };
         AppNotificationManager.Default.Show(new AppNotificationBuilder()
             .AddArgument("action", "open")
-            .AddText("SCSKiller is still running")
-            .AddText("It's in the notification area, right-click the icon to quit.")
+            .AddText("SCSKiller 仍在运行")
+            .AddText("程序已移到通知区域；右键单击图标可退出。")
             .BuildNotification());
     }
 
@@ -321,12 +321,12 @@ public partial class App : Application
         if (c.Link != null) panel.Children.Add(new HyperlinkButton { Content = c.Link.Text, NavigateUri = new Uri(c.Link.Url), Padding = new Thickness(0) });
         var share = new CheckBox { Content = c.Share, IsChecked = false };   // never pre-ticked: that isn't consent
         panel.Children.Add(share);
-        var diagnostics = new CheckBox { Content = "Share diagnostics to help fix problems", IsChecked = false };
+        var diagnostics = new CheckBox { Content = "共享诊断信息以帮助修复问题", IsChecked = false };
         panel.Children.Add(diagnostics);
-        var activeCaption = new TextBlock { Text = "Helps us count active installs so we can size our servers. Once a day, the app's version and GPU vendor, no identifier.", TextWrapping = TextWrapping.Wrap,
+        var activeCaption = new TextBlock { Text = "帮助我们统计活跃安装量以规划服务器。每天一次，仅发送程序版本和显卡厂商，不含任何标识。", TextWrapping = TextWrapping.Wrap,
             Style = (Style)Current.Resources["Caption"] };
-        var active = new CheckBox { IsChecked = false, Content = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = "Send an anonymous daily check", TextWrapping = TextWrapping.Wrap }, activeCaption } } };
-        AutomationProperties.SetName(active, "Send an anonymous daily check");
+        var active = new CheckBox { IsChecked = false, Content = new StackPanel { Spacing = 2, Children = { new TextBlock { Text = "发送匿名每日活跃检查", TextWrapping = TextWrapping.Wrap }, activeCaption } } };
+        AutomationProperties.SetName(active, "发送匿名每日活跃检查");
         panel.Children.Add(active);
         var dialog = new ContentDialog
         {
@@ -351,7 +351,7 @@ public partial class App : Application
 
     public static ContentDialog ActiveCheckDialog(XamlRoot root) => new()
     {
-        XamlRoot = root, Title = "Anonymous daily check",
+        XamlRoot = root, Title = "匿名每日检查",
         Content = new StackPanel
         {
             Spacing = 8,
@@ -359,14 +359,14 @@ public partial class App : Application
             {
                 new TextBlock
                 {
-                    Text = "Once a day SCSKiller can tell our server that an install is active, with its version and GPU vendor and no identifier. "
-                        + "This helps us count active installs so we can size our servers. It's off until you turn it on.",
+                    Text = "SCSKiller 每天可向我们的服务器发送一次“本机有安装”的信息，包含版本和显卡厂商，不含任何标识。"
+                        + "这有助于我们统计活跃安装量以规划服务器。在你开启之前不会发送。",
                     TextWrapping = TextWrapping.Wrap,
                 },
-                new TextBlock { Text = "Change it any time in Settings.", TextWrapping = TextWrapping.Wrap, Style = (Style)Current.Resources["Caption"] },
+                new TextBlock { Text = "可随时在设置中更改。", TextWrapping = TextWrapping.Wrap, Style = (Style)Current.Resources["Caption"] },
             },
         },
-        PrimaryButtonText = "Turn it on", CloseButtonText = "Keep it off", DefaultButton = ContentDialogButton.None,   // no nudge either way
+        PrimaryButtonText = "开启", CloseButtonText = "Keep it off", DefaultButton = ContentDialogButton.None,   // no nudge either way
     };
 
     /// <summary>The one-time diagnostics question (<see cref="Diagnostics.Asks"/>): either button, or Esc, answers it.</summary>
@@ -374,13 +374,13 @@ public partial class App : Application
     {
         var dialog = new ContentDialog
         {
-            XamlRoot = root, Title = "Share diagnostics to help fix problems?",
+            XamlRoot = root, Title = "是否共享诊断信息以帮助修复问题？",
             Content = new TextBlock
             {
-                Text = "When a compile fails, send its error codes, once per compile. You can change this in Settings.",
+                Text = "编译失败时发送错误码，每次编译最多一次。可在设置中更改。",
                 TextWrapping = TextWrapping.Wrap,
             },
-            PrimaryButtonText = "Share diagnostics", CloseButtonText = "No thanks", DefaultButton = ContentDialogButton.Close,
+            PrimaryButtonText = "共享诊断信息", CloseButtonText = "No thanks", DefaultButton = ContentDialogButton.Close,
         };
         ContentDialogResult result;
         try { result = await Themed(dialog).ShowAsync(); }
@@ -415,7 +415,7 @@ public partial class App : Application
             }
             panel.Children.Add(text);
         }
-        return new ContentDialog { XamlRoot = root, Title = $"What's new in {section.Version}", Content = new ScrollViewer { Content = panel }, CloseButtonText = "Close" };
+        return new ContentDialog { XamlRoot = root, Title = $"{section.Version} 更新内容", Content = new ScrollViewer { Content = panel }, CloseButtonText = "关闭" };
     }
 
     /// <summary>A question with Cancel and one action; true = the action was chosen.</summary>
@@ -424,7 +424,7 @@ public partial class App : Application
 
     public static ContentDialog Confirm(Page page, string title, object content, string primaryText, ContentDialogButton defaultButton = ContentDialogButton.Close) => new()
     {
-        XamlRoot = page.XamlRoot, Title = title, Content = content, PrimaryButtonText = primaryText, CloseButtonText = "Cancel", DefaultButton = defaultButton,
+        XamlRoot = page.XamlRoot, Title = title, Content = content, PrimaryButtonText = primaryText, CloseButtonText = "取消", DefaultButton = defaultButton,
     };
 
     /// <summary>None when another dialog is open: WinUI shows one at a time and throws, which an async void
@@ -473,14 +473,14 @@ public partial class App : Application
         var t = new Tray(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"))
         {
             Open = ShowWindow,
-            PauseLabel = () => Running() is not { } q ? null : q.Stage == QueueStage.Paused ? "Resume" : "Pause compiling",
+            PauseLabel = () => Running() is not { } q ? null : q.Stage == QueueStage.Paused ? "Resume" : "暂停编译",
             PauseOrResume = () => Fmt.PauseOrResume(Running()),
             Quit = () => _ = QuitAsync(),
-            QuitLabel = () => quitNow != null ? "Quit now (loses unsaved cache)" : "Quit",
+            QuitLabel = () => quitNow != null ? "立即退出（未保存的缓存会丢失）" : "Quit",
             SessionEnding = hwnd =>
             {
                 if (Running() == null) return;
-                ShutdownBlockReasonCreate(hwnd, "Stopping the compile so the graphics driver can save its shader cache");
+                ShutdownBlockReasonCreate(hwnd, "正在停止编译，以便显卡驱动保存着色器缓存");
                 StopAll();
             },
             SessionEnd = hwnd =>
@@ -505,7 +505,7 @@ public partial class App : Application
 
     static void UpdateTip()
     {
-        if (tray != null) tray.Tip = "SCSKiller: " + Status().Line;
+        if (tray != null) tray.Tip = "SCSKiller：" + Status().Line;
     }
 
     static QueueItem? Running() => Core.Queue.FirstOrDefault(Format.Running);
@@ -521,7 +521,7 @@ public partial class App : Application
     /// <summary>The real quit (the tray's Quit). With a compile running: stop it gracefully, hide the window, keep the icon
     /// ("finishing, the driver is saving the shader cache") and exit once the warm has exited, however long the driver's
     /// cache write takes (scskiller_warm bounds it: 600 s after its last line; a warm that ignores the stop is ended after
-    /// 30 s). Quit again meanwhile ("Quit now (loses unsaved cache)") exits at once: the warm job kills the warm.</summary>
+    /// 30 s). Quit again meanwhile ("立即退出（未保存的缓存会丢失）") exits at once: the warm job kills the warm.</summary>
     public static async Task QuitAsync()
     {
         if (quitNow != null) { quitNow.TrySetResult(); return; }
@@ -558,18 +558,18 @@ public partial class App : Application
         tray = null;
     }
 
-    // Toast.dc.html. Windows draws the buttons, so "Compile now" can't be accent-coloured.
+    // Toast.dc.html. Windows draws the buttons, so "立即编译" can't be accent-coloured.
     static AppNotification DriverToast(IReadOnlyList<GameState> stale)
     {
         var time = TimeSpan.FromTicks(stale.Sum(g => (g.EstimatedWarmTime ?? TimeSpan.Zero).Ticks));
-        string games = stale.Count == 1 ? "1 game needs" : $"{stale.Count} games need";
+        string games = stale.Count == 1 ? "1 个游戏需要" : $"{stale.Count} games need";
         return new AppNotificationBuilder()
             .AddArgument("action", "open")
             .AddText($"{Fmt.Vendor(Core.Vendor.Vendor)} driver updated")
-            .AddText($"Driver {Core.Vendor.Gpu.DriverVersion} cleared the shader cache. {games} rebuilding: " +
+            .AddText($"驱动 {Core.Vendor.Gpu.DriverVersion} 清除了着色器缓存。正在重建 {games}：" +
                      $"{string.Join(", ", stale.Select(g => g.Game.Name))}" + (time > TimeSpan.Zero ? $", about {Format.Duration(time)}." : "."))
-            .AddButton(new AppNotificationButton("Compile now").AddArgument("action", "now"))
-            .AddButton(new AppNotificationButton("When idle").AddArgument("action", "idle"))
+            .AddButton(new AppNotificationButton("立即编译").AddArgument("action", "now"))
+            .AddButton(new AppNotificationButton("空闲时编译").AddArgument("action", "idle"))
             .AddButton(new AppNotificationButton("Skip").AddArgument("action", "skip"))
             .BuildNotification();
     }
@@ -611,14 +611,14 @@ public partial class App : Application
         var b = new AppNotificationBuilder()
             .AddArgument("action", "shaders-show").AddArgument("games", ids);
         if (compiling)
-            b.AddText("Compiling new shaders")
-                .AddText(games.Count == 1 ? $"{games[0].Game.Name} has {n:N0} new pipeline{(n == 1 ? "" : "s")}. They compile when the PC is idle."
-                    : $"{games.Count} games have new shaders. They compile when the PC is idle.");
+            b.AddText("正在编译新的着色器")
+                .AddText(games.Count == 1 ? $"{games[0].Game.Name} 有 {n:N0} 条新管线，会在电脑空闲时编译。"
+                    : $"{games.Count} 个游戏有新着色器，会在电脑空闲时编译。");
         else
-            b.AddText("New shaders to compile")
-                .AddText(games.Count == 1 ? $"{games[0].Game.Name} has {n:N0} new pipeline{(n == 1 ? "" : "s")}. Compile now so they don't stutter."
-                    : $"{games.Count} games have new shaders to compile");
-        return b.AddButton(new AppNotificationButton("Compile now").AddArgument("action", "shaders-compile").AddArgument("games", ids))
+            b.AddText("有新着色器可编译")
+                .AddText(games.Count == 1 ? $"{games[0].Game.Name} 有 {n:N0} 条新管线，立即编译可避免卡顿。"
+                    : $"{games.Count} 个游戏有新着色器可编译");
+        return b.AddButton(new AppNotificationButton("立即编译").AddArgument("action", "shaders-compile").AddArgument("games", ids))
             .AddButton(new AppNotificationButton("Show").AddArgument("action", "shaders-show").AddArgument("games", ids))
             .BuildNotification();
     }
@@ -668,7 +668,7 @@ public partial class App : Application
         }
     }
 
-    /// <summary>"Compile queue" (the library's and the queue's): everything listed, "when idle" items too (Enqueue makes
+    /// <summary>"编译队列" (the library's and the queue's): everything listed, "when idle" items too (Enqueue makes
     /// them normal ones). Plan checks aren't listed: Enqueue would turn them into compiles of games nobody picked.</summary>
     public static void CompileQueue()
     {

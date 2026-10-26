@@ -28,10 +28,10 @@ public static class UpdateHooks
     public static VelopackApp Hooks(VelopackApp app) => app
         .SetLogger(new VelopackLog())   // Run's locator keeps it: every UpdateManager of this process logs through it
         .SetAutoApplyOnStartup(false)   // it takes the newest package on disk, any channel, before any Busy or offline check, and force-stops every process under the install root
-        .OnAfterInstallFastCallback(v => HookSteps.Run($"Installed {v}", Log,
+        .OnAfterInstallFastCallback(v => HookSteps.Run($"已安装 {v}", Log,
             // a zip install's driver-update task points at the zip's folder: move it here (current\ keeps its name across updates)
             () => { if (ScheduledTask.Registered && ScheduledTask.TaskExe() is { } exe) ScheduledTask.Register(exe); }))
-        .OnAfterUpdateFastCallback(v => HookSteps.Run($"Update.exe swapped in {v}", Log,
+        .OnAfterUpdateFastCallback(v => HookSteps.Run($"Update.exe 已替换为 {v}", Log,
             () => Busy.ClearApplying(DataDir)))   // the swap is done: the CLI may run again
         // Kept: the data dir (recordings, settings).
         .OnBeforeUninstallFastCallback(_ => HookSteps.Uninstall(new AppStore(DataDir), Log, ScheduledTask.Unregister,

@@ -16,7 +16,7 @@
         <Border x:Name="ShotBackground" Grid.RowSpan="2" Visibility="Collapsed"
                 Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
 
-        <TitleBar x:Name="AppTitleBar" Title="SCSKiller" Subtitle="Shader Compilation Stutter Killer"
+        <TitleBar x:Name="AppTitleBar" Title="SCSKiller" Subtitle="着色器卡顿预编译 · 中文版"
                   IsBackButtonVisible="False"
                   IsPaneToggleButtonVisible="True" PaneToggleRequested="OnPaneToggle">
             <TitleBar.IconSource>
@@ -32,13 +32,13 @@
                     <Button x:Name="UpdateButton" Visibility="Collapsed" Click="OnRestartToUpdate" Padding="10,3">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE777;" FontSize="13" />
-                            <TextBlock x:Name="UpdateText" Text="Restart to update" FontSize="13" />
+                            <TextBlock x:Name="UpdateText" Text="重启以更新" FontSize="13" />
                         </StackPanel>
                     </Button>
                     <!-- 46 px: the system caption-button width, so the bell sits flush against min/max/close -->
                     <Button x:Name="BellButton" Background="Transparent" BorderThickness="0" Padding="0"
                             Width="46" VerticalAlignment="Stretch"
-                            ToolTipService.ToolTip="Notifications" AutomationProperties.Name="Notifications">
+                            ToolTipService.ToolTip="通知" AutomationProperties.Name="通知">
                         <!-- sized to hold the badge, which hangs off the glyph's top-right corner; negative margins would clip it -->
                         <Grid Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <FontIcon Glyph="&#xEA8F;" FontSize="16" />
@@ -57,21 +57,21 @@
                         IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False" IsSettingsVisible="False"
                         SelectionChanged="OnNavSelection" ItemInvoked="OnNavInvoked">
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="LibraryItem" Content="Library">
+                <NavigationViewItem x:Name="LibraryItem" Content="游戏库">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xF0E2;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="QueueItem" Content="Compile queue">
+                <NavigationViewItem x:Name="QueueItem" Content="编译队列">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE8FD;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="CacheItem" Content="Cache">
+                <NavigationViewItem x:Name="CacheItem" Content="缓存">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xEDA2;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="SettingsItem" Content="Settings">
+                <NavigationViewItem x:Name="SettingsItem" Content="设置">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE713;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             <NavigationView.FooterMenuItems>
-                <NavigationViewItem x:Name="AboutItem" Content="About">
+                <NavigationViewItem x:Name="AboutItem" Content="关于">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE946;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
@@ -79,7 +79,7 @@
                 <Border Style="{StaticResource Card}" Margin="4,0,4,4" Padding="12,8"
                         Visibility="{x:Bind Nav.IsPaneOpen, Mode=OneWay}">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="GPU" Style="{StaticResource Caption}" />
+                        <TextBlock Text="显卡" Style="{StaticResource Caption}" />
                         <TextBlock x:Name="GpuName" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" />
                         <TextBlock x:Name="GpuDriver" Style="{StaticResource Caption}" TextWrapping="Wrap" />
                     </StackPanel>

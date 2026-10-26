@@ -206,7 +206,7 @@ public sealed class Sharing
             catch (InvalidDataException e) when (draws.Count == 0)   // e.g. no PSOs yet: not again until the recording changes
             {
                 Community.Write(shared, last with { Stamp = stamp });
-                Problem = $"A recording has nothing to share ({e.Message}).";
+                Problem = $"录制数据中没有可分享的内容（{e.Message}）。";
                 return null;
             }
             catch (InvalidDataException) { }   // the draws go alone
@@ -253,7 +253,7 @@ public sealed class Sharing
             IReadOnlySet<string>? excludedNow;
             try { excludedNow = layerMade?.Invoke(); }
             catch (Recordings.IncompleteLayerList e) { Waiting = e.Message; return Stop(null); }
-            catch (Exception e) { return Stop($"What a layer made can't be read ({e.Message}): sharing waits."); }   // any failure: nothing more goes
+            catch (Exception e) { return Stop($"无法读取图层生成的内容（{e.Message}），已暂停分享。"); }   // any failure: nothing more goes
             List<PsoDb.Rec> chunk;
             try { chunk = excludedNow == null || isDraws ? whole : HashOnly.Canonical(whole, local: true, out _, layerMade: excludedNow); }
             catch (InvalidDataException) { continue; }   // nothing left of it but root signatures
@@ -264,7 +264,7 @@ public sealed class Sharing
                 continue;
             }
             var body = HashOnly.Compress(chunk);
-            if (body.Length > MaxBody) return Stop($"A recording is too large to share ({body.Length >> 20} MB compressed, the limit is {MaxBody >> 20} MB).");
+            if (body.Length > MaxBody) return Stop($"录制数据过大，无法分享（压缩后 {body.Length >> 20} MB，上限 {MaxBody >> 20} MB）。");
             UploadMeta Meta() => isDraws ? meta() with { StoreBuildKey = drawsKey, ContentHash = drawsHash } : meta();
             try
             {
@@ -296,7 +296,7 @@ public sealed class Sharing
                         stamp += "|nodraws";
                         continue;
                     }
-                    var why = $"Sharing a recording was refused (error {(int)r.StatusCode}).";
+                    var why = $"上游社区数据库拒绝接收录制数据（{(int)r.StatusCode}）。";
                     if (r.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.RequestEntityTooLarge or HttpStatusCode.Forbidden)
                     {
                         Problem = why;
@@ -311,7 +311,7 @@ public sealed class Sharing
             catch (Exception e) when (!ct.IsCancellationRequested)
             {
                 backoffUntil = clock.GetUtcNow() + TimeSpan.FromMinutes(5);   // offline, or an answer this version can't read
-                return Stop(e is HttpRequestException or OperationCanceledException ? "Can't reach the community database to share a recording." : e.Message);
+                return Stop(e is HttpRequestException or OperationCanceledException ? "无法连接上游社区数据库以分享录制数据。" : e.Message);
             }
         }
         var got = uploadId is null ? last with { Stamp = stamp, Sent = [.. sent] } : new SharedRecording(stamp, clock.GetUtcNow(), uploadId, psos, fresh, [.. sent], sentWith);
@@ -394,7 +394,7 @@ public sealed class Sharing
                 var body = HashOnly.Compress(records);
                 if (body.Length > MaxBody)
                 {
-                    Problem = $"An upscaler pack is too large to share ({body.Length >> 20} MB compressed, the limit is {MaxBody >> 20} MB).";
+                    Problem = $"超分辨率共享包过大，无法分享（压缩后 {body.Length >> 20} MB，上限 {MaxBody >> 20} MB）。";
                     stamps[name] = stamp;
                     continue;
                 }
@@ -415,7 +415,7 @@ public sealed class Sharing
                         stamps[name] = stamp;
                         continue;
                     }
-                    Problem = $"Sharing an upscaler pack was refused (error {(int)r.StatusCode}).";
+                    Problem = $"上游社区数据库拒绝接收超分辨率共享包（{(int)r.StatusCode}）。";
                     if (r.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.RequestEntityTooLarge)
                     {
                         stamps[name] = stamp;   // refused for good: not again until it changes
@@ -430,7 +430,7 @@ public sealed class Sharing
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
             backoffUntil = clock.GetUtcNow() + TimeSpan.FromMinutes(5);
-            Problem = e is HttpRequestException or OperationCanceledException ? "Can't reach the community database to share an upscaler pack." : e.Message;
+            Problem = e is HttpRequestException or OperationCanceledException ? "无法连接上游社区数据库以分享超分辨率共享包。" : e.Message;
         }
         finally { Community.Write(stampFile, stamps); }
         return done;
@@ -533,7 +533,7 @@ public sealed class Sharing
         {
             for (var attempt = 0; ; attempt++)
             {
-                if (await DeviceTokenAsync(ct) is not { } token) return "Couldn't register this PC for reports. Try again later.";
+                if (await DeviceTokenAsync(ct) is not { } token) return "无法为本机注册报告功能，请稍后再试。";
                 using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(routes.Primary, "v1/compat")) { Content = new ByteArrayContent(report.Body()) };
                 request.Content.Headers.ContentType = new("application/json");
                 request.Headers.Authorization = new("Bearer", token);
@@ -547,19 +547,19 @@ public sealed class Sharing
                 return r.StatusCode switch
                 {
                     HttpStatusCode.OK => null,
-                    HttpStatusCode.BadRequest => "The server didn't take this report.",
+                    HttpStatusCode.BadRequest => "服务器未接受这份报告。",
                     _ when compatClosed => CompatClosed,
-                    _ => "Not sent. Try again later.",
+                    _ => "未发送，请稍后再试。",
                 };
             }
         }
         catch (Exception) when (!ct.IsCancellationRequested)   // offline, or an answer this version can't read
         {
-            return "Not sent. Try again later.";
+            return "未发送，请稍后再试。";
         }
     }
 
-    const string CompatClosed = "Reports aren't open yet.";
+    const string CompatClosed = "报告功能尚未开放。";
     bool compatClosed;
 
     /// <summary>A game folder's list of the shaders its build ships (the index's): the content hash (20 bytes), then each
@@ -614,7 +614,7 @@ public sealed class Sharing
         if (!r.IsSuccessStatusCode)
         {
             BackOff(r);   // 3 registrations a day per IP
-            Problem = $"Couldn't register for sharing (error {(int)r.StatusCode}).";
+            Problem = $"无法向上游社区数据库注册分享设备（{(int)r.StatusCode}）。";
             return null;
         }
         var j = await r.Content.ReadFromJsonAsync<JsonElement>(ct);

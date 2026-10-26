@@ -53,11 +53,11 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="Rename…" Click="OnRename" Visibility="{x:Bind Vm.IsManual, Mode=OneWay}"
-                            ToolTipService.ToolTip="The name SCSKiller shows for this game" />
-                    <Button Content="Game folder…" Click="OnGameFolder" Visibility="{x:Bind Vm.IsManual, Mode=OneWay}"
-                            ToolTipService.ToolTip="The folder SCSKiller checks for anti-cheat before it records this game" />
-                    <Button Content="Remove from library" Click="OnRemoveGame" ToolTipService.ToolTip="{x:Bind Vm.RemoveTip, Mode=OneWay}" />
+                    <Button Content="重命名…" Click="OnRename" Visibility="{x:Bind Vm.IsManual, Mode=OneWay}"
+                            ToolTipService.ToolTip="SCSKiller 显示的游戏名" />
+                    <Button Content="游戏目录…" Click="OnGameFolder" Visibility="{x:Bind Vm.IsManual, Mode=OneWay}"
+                            ToolTipService.ToolTip="SCSKiller 在录制前会检查此目录中的反作弊组件" />
+                    <Button Content="从游戏库移除" Click="OnRemoveGame" ToolTipService.ToolTip="{x:Bind Vm.RemoveTip, Mode=OneWay}" />
                     <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Vm.PlayTip, Mode=OneWay}" Visibility="{x:Bind Vm.ShowPlay, Mode=OneWay}">
                         <Button Content="{x:Bind Vm.PlayText, Mode=OneWay}" Click="{x:Bind Vm.Play}" IsEnabled="{x:Bind Vm.CanPlay, Mode=OneWay}" />
                     </Grid>
@@ -72,7 +72,7 @@
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind Vm.Name, Mode=OneWay}" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
                     <TextBlock Text="{x:Bind Vm.Sub, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
-                    <TextBlock Text="● Playing now" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                    <TextBlock Text="● 正在运行" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                Visibility="{x:Bind Vm.Playing, Mode=OneWay}" />
                 </StackPanel>
             </Grid>
@@ -99,7 +99,7 @@
                         <TextBlock Text="{x:Bind Vm.DeliveryLine, Mode=OneWay}" Visibility="{x:Bind Vm.HasDeliveryLine, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind Vm.HasKeptCache, Mode=OneWay}">
                             <TextBlock Text="{x:Bind Vm.KeptCacheNote, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                            <HyperlinkButton Content="Clear it" Padding="0" Click="OnClearCache" VerticalAlignment="Center" />
+                            <HyperlinkButton Content="清除" Padding="0" Click="OnClearCache" VerticalAlignment="Center" />
                         </StackPanel>
                         <StackPanel Spacing="2" Margin="0,4,0,0" Visibility="{x:Bind Vm.HasMaximumLine, Mode=OneWay}">
                             <TextBlock Text="{x:Bind Vm.MaximumLine, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
@@ -107,25 +107,25 @@
                             <HyperlinkButton Content="{x:Bind Vm.MaximumAction, Mode=OneWay}" Padding="0" Click="OnGameMaximum" IsEnabled="{x:Bind Vm.CanSetMaximum, Mode=OneWay}" />
                         </StackPanel>
                         <ProgressBar Margin="0,6,0,0" Value="{x:Bind Vm.Percent, Mode=OneWay}" IsIndeterminate="{x:Bind Vm.Indeterminate, Mode=OneWay}"
-                                     Visibility="{x:Bind Vm.IsCompiling, Mode=OneWay}" AutomationProperties.Name="Compile progress" />
+                                     Visibility="{x:Bind Vm.IsCompiling, Mode=OneWay}" AutomationProperties.Name="编译进度" />
                     </StackPanel>
                     <local:WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="8" LineAlignment="Right">
-                        <Button Content="Why?" Click="OnPartlyWhy" Visibility="{x:Bind Vm.IsPartlyCompiled, Mode=OneWay}" />
-                        <Button Content="Set AES key" Click="OnSetAesKey" Visibility="{x:Bind Vm.NeedsAesKey, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" />
-                        <Button Click="{x:Bind Vm.RefreshGame}" IsEnabled="{x:Bind Vm.CanRefresh, Mode=OneWay}" AutomationProperties.Name="Refresh"
-                                ToolTipService.ToolTip="Re-read this game's cache size, recording and last session" VerticalAlignment="Stretch">
+                        <Button Content="原因" Click="OnPartlyWhy" Visibility="{x:Bind Vm.IsPartlyCompiled, Mode=OneWay}" />
+                        <Button Content="设置 AES 密钥" Click="OnSetAesKey" Visibility="{x:Bind Vm.NeedsAesKey, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" />
+                        <Button Click="{x:Bind Vm.RefreshGame}" IsEnabled="{x:Bind Vm.CanRefresh, Mode=OneWay}" AutomationProperties.Name="刷新"
+                                ToolTipService.ToolTip="重新读取此游戏的缓存容量、录制数据和上次会话" VerticalAlignment="Stretch">
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
                         <!-- tooltip on a hit-testable wrapper: a disabled button shows none -->
                         <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Vm.ReportTip, Mode=OneWay}">
-                            <Button Content="Rate this compile" Click="OnSendReport" IsEnabled="{x:Bind Vm.CanReport, Mode=OneWay}" />
+                            <Button Content="评价本次编译" Click="OnSendReport" IsEnabled="{x:Bind Vm.CanReport, Mode=OneWay}" />
                         </Grid>
-                        <Button Content="Report a problem" Click="OnReportProblem" ToolTipService.ToolTip="Send the SCSKiller team what went wrong with this game" />
+                        <Button Content="报告问题" Click="OnReportProblem" ToolTipService.ToolTip="把此游戏出现的问题报告给 SCSKiller 团队" />
                         <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Vm.ClearCacheTip, Mode=OneWay}" Visibility="{x:Bind Vm.ShowClearCache, Mode=OneWay}">
                             <Button Content="{x:Bind Vm.ClearCacheText, Mode=OneWay}" Click="OnClearCache" IsEnabled="{x:Bind Vm.CanClearCache, Mode=OneWay}" />
                         </Grid>
-                        <Button Content="Max compile" Click="OnMaxCompile" Visibility="{x:Bind Vm.CanCompile, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanAdd, Mode=OneWay}"
-                                ToolTipService.ToolTip="Compiles every combination of this game's shaders, once" />
+                        <Button Content="最大编译" Click="OnMaxCompile" Visibility="{x:Bind Vm.CanCompile, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanAdd, Mode=OneWay}"
+                                ToolTipService.ToolTip="编译此游戏着色器的所有组合，每种一次" />
                         <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Vm.CompileTip, Mode=OneWay}" Visibility="{x:Bind Vm.CanCompile, Mode=OneWay}">
                             <Button Style="{x:Bind Vm.CompileStyle, Mode=OneWay}" Click="OnCompile" IsEnabled="{x:Bind Vm.CanAdd, Mode=OneWay}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -139,11 +139,11 @@
                             <Button Content="{x:Bind Vm.BaText, Mode=OneWay}" Style="{x:Bind Vm.BaStyle, Mode=OneWay}" IsEnabled="{x:Bind Vm.BaEnabled, Mode=OneWay}" Click="OnBeforeAfter"
                                     AutomationProperties.HelpText="{x:Bind Vm.BaTip, Mode=OneWay}" />
                         </Grid>
-                        <Button Content="Compile again" Click="OnBaCompileAgain" Visibility="{x:Bind Vm.BaCompileAgain, Mode=OneWay}" />
-                        <Button Content="Record the after run again" Click="OnBaRecordAgain" Visibility="{x:Bind Vm.BaDone, Mode=OneWay}" />
-                        <Button Content="Start over" Click="OnBaStartOver" Visibility="{x:Bind Vm.BaDone, Mode=OneWay}" />
-                        <Button Content="How it works" Click="OnBaHowItWorks" Visibility="{x:Bind Vm.BaHasMenu, Mode=OneWay}" />
-                        <Button Content="Cancel the before and after recording" Click="OnBaCancel" Visibility="{x:Bind Vm.BaInProgress, Mode=OneWay}" />
+                        <Button Content="再次编译" Click="OnBaCompileAgain" Visibility="{x:Bind Vm.BaCompileAgain, Mode=OneWay}" />
+                        <Button Content="重新录制“之后”运行" Click="OnBaRecordAgain" Visibility="{x:Bind Vm.BaDone, Mode=OneWay}" />
+                        <Button Content="重新开始" Click="OnBaStartOver" Visibility="{x:Bind Vm.BaDone, Mode=OneWay}" />
+                        <Button Content="工作原理" Click="OnBaHowItWorks" Visibility="{x:Bind Vm.BaHasMenu, Mode=OneWay}" />
+                        <Button Content="取消前后对比录制" Click="OnBaCancel" Visibility="{x:Bind Vm.BaInProgress, Mode=OneWay}" />
                     </local:WrapPanel>
                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{x:Bind Vm.BaNote, Mode=OneWay}" Visibility="{x:Bind Vm.HasBaNote, Mode=OneWay}"
                                Style="{StaticResource Caption}" TextWrapping="Wrap" TextAlignment="Right" />
@@ -159,7 +159,7 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="&#xE7BA;" FontSize="16" Foreground="{ThemeResource WarnBrush}" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center">
-                        <Run Text="Stutters without a compile" Foreground="{ThemeResource WarnBrush}" FontWeight="SemiBold" /><Run Text=" · " /><Run Text="{x:Bind Vm.StutterReason, Mode=OneWay}" /><Run Text="  " /><Run Text="{x:Bind Vm.StutterCitation, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" /><Hyperlink NavigateUri="{x:Bind Vm.StutterUri, Mode=OneWay}"><Run Text="{x:Bind Vm.StutterLinkText, Mode=OneWay}" /></Hyperlink>
+                        <Run Text="不编译就会卡顿" Foreground="{ThemeResource WarnBrush}" FontWeight="SemiBold" /><Run Text=" · " /><Run Text="{x:Bind Vm.StutterReason, Mode=OneWay}" /><Run Text="  " /><Run Text="{x:Bind Vm.StutterCitation, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" /><Hyperlink NavigateUri="{x:Bind Vm.StutterUri, Mode=OneWay}"><Run Text="{x:Bind Vm.StutterLinkText, Mode=OneWay}" /></Hyperlink>
                     </TextBlock>
                 </Grid>
             </Border>
@@ -172,7 +172,7 @@
                     </Grid.ColumnDefinitions>
                     <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center">
-                        <Run Text="No shader stutter" FontWeight="SemiBold" /><Run Text=" · " /><Run Text="{x:Bind Vm.NoStutterReason, Mode=OneWay}" /><Run Text=". Compiling it isn't needed." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Run Text="无着色器卡顿" FontWeight="SemiBold" /><Run Text=" · " /><Run Text="{x:Bind Vm.NoStutterReason, Mode=OneWay}" /><Run Text="。无需预编译。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </TextBlock>
                 </Grid>
             </Border>
@@ -209,7 +209,7 @@
                 </Border>
                 <ComboBox ItemsSource="{x:Bind Vm.ApiItems, Mode=OneWay}" SelectedIndex="{x:Bind Vm.ApiIndex, Mode=OneWay}" SelectionChanged="OnApiPicked"
                           Visibility="{x:Bind Vm.ShowApiPicker, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanPickApi, Mode=OneWay}" FontSize="12" MinHeight="0" Padding="10,2,0,3"
-                          AutomationProperties.Name="DirectX" ToolTipService.ToolTip="The DirectX SCSKiller compiles for. Auto uses the detected one." />
+                          AutomationProperties.Name="DirectX" ToolTipService.ToolTip="SCSKiller 编译所用的 DirectX 版本。自动表示使用检测到的版本。" />
                 <Border Style="{StaticResource Chip}" Visibility="{x:Bind Vm.HasMiddleware, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind Vm.MiddlewareTip, Mode=OneWay}">
                     <TextBlock Text="{x:Bind Vm.MiddlewareChip, Mode=OneWay}" Style="{StaticResource ChipText}" />
                 </Border>
@@ -231,7 +231,7 @@
             <InfoBar Severity="Informational" IsClosable="False" IsOpen="{x:Bind Vm.HasRecordTip, Mode=OneWay}" Visibility="{x:Bind Vm.HasRecordTip, Mode=OneWay}"
                      Title="{x:Bind Vm.RecordTipTitle, Mode=OneWay}" Message="{x:Bind Vm.RecordTip, Mode=OneWay}">
                 <InfoBar.ActionButton>
-                    <Button Content="Turn on recording" Click="OnRecordTip" HorizontalAlignment="Right" Visibility="{x:Bind Vm.ShowRecordAction, Mode=OneWay}" />
+                    <Button Content="开启录制" Click="OnRecordTip" HorizontalAlignment="Right" Visibility="{x:Bind Vm.ShowRecordAction, Mode=OneWay}" />
                 </InfoBar.ActionButton>
             </InfoBar>
 
@@ -242,13 +242,13 @@
             <InfoBar Severity="Warning" IsClosable="False" IsOpen="{x:Bind Vm.ShowLeftCallout, Mode=OneWay}" Visibility="{x:Bind Vm.ShowLeftCallout, Mode=OneWay}"
                      Title="{x:Bind Vm.LeftTitle, Mode=OneWay}" Message="{x:Bind Vm.LeftText, Mode=OneWay}">
                 <InfoBar.ActionButton>
-                    <Button Content="Turn on recording" Click="OnRecordTip" HorizontalAlignment="Right" Visibility="{x:Bind Vm.ShowRecordAction, Mode=OneWay}" />
+                    <Button Content="开启录制" Click="OnRecordTip" HorizontalAlignment="Right" Visibility="{x:Bind Vm.ShowRecordAction, Mode=OneWay}" />
                 </InfoBar.ActionButton>
             </InfoBar>
 
             <Border Style="{StaticResource Card}" Padding="20,18" Visibility="{x:Bind Vm.HasCoverageCard, Mode=OneWay}">
                 <StackPanel Spacing="20">
-                    <TextBlock Text="Shader coverage" Style="{StaticResource Section}" />
+                    <TextBlock Text="着色器覆盖情况" Style="{StaticResource Section}" />
                     <Grid ColumnSpacing="40">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -282,12 +282,12 @@
                                     <TextBlock Text="{x:Bind Vm.StuttersValue, Mode=OneWay}" Style="{StaticResource StatValue}" Foreground="{ThemeResource WarnBrush}" Visibility="{x:Bind Vm.HasStutters, Mode=OneWay}" />
                                 </StackPanel>
                                 <StackPanel Spacing="2" Visibility="{x:Bind Vm.HasShaderCount, Mode=OneWay}">
-                                    <TextBlock Text="Shaders in the game" Style="{StaticResource Secondary}" />
+                                    <TextBlock Text="游戏自带的着色器" Style="{StaticResource Secondary}" />
                                     <TextBlock Text="{x:Bind Vm.ShaderCount, Mode=OneWay}" Style="{StaticResource StatValue}" />
                                 </StackPanel>
                             </local:WrapPanel>
                             <StackPanel Spacing="6" Width="320" Visibility="{x:Bind Vm.HasSources, Mode=OneWay}">
-                                <TextBlock Text="Where the shaders come from" Style="{StaticResource Secondary}" />
+                                <TextBlock Text="着色器来源" Style="{StaticResource Secondary}" />
                                 <ItemsRepeater ItemsSource="{x:Bind Vm.Sources, Mode=OneWay}" ItemTemplate="{StaticResource SourceRow}">
                                     <ItemsRepeater.Layout><StackLayout Spacing="6" /></ItemsRepeater.Layout>
                                 </ItemsRepeater>
@@ -295,7 +295,7 @@
                         </local:WrapPanel>
                     </Grid>
 
-                    <Expander x:Name="DetailsExpander" Header="Details" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <Expander x:Name="DetailsExpander" Header="详情" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                         <ItemsRepeater ItemsSource="{x:Bind Vm.Details, Mode=OneWay}" ItemTemplate="{StaticResource DetailRow}">
                             <ItemsRepeater.Layout><StackLayout Spacing="8" /></ItemsRepeater.Layout>
                         </ItemsRepeater>
@@ -307,7 +307,7 @@
             <Border x:Name="FramesCard" Style="{StaticResource Card}" Padding="20,18" Visibility="{x:Bind Vm.HasFramesCard, Mode=OneWay}">
                 <StackPanel Spacing="12">
                     <StackPanel Spacing="2" Visibility="{x:Bind Vm.HasFrames, Mode=OneWay}">
-                        <TextBlock Text="Frame times last time you played" Style="{StaticResource Section}" />
+                        <TextBlock Text="上次游玩的帧时间" Style="{StaticResource Section}" />
                         <TextBlock Text="{x:Bind Vm.FramesVerdict, Mode=OneWay}" TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel Spacing="4" Visibility="{x:Bind Vm.HasFrames, Mode=OneWay}">
@@ -322,31 +322,31 @@
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <Ellipse Width="7" Height="7" Fill="{ThemeResource WarnBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="shader compile" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <TextBlock Text="着色器编译" Style="{StaticResource CaptionTextBlockStyle}" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <Ellipse Width="7" Height="7" Fill="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="other hitch" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <TextBlock Text="其他卡顿" Style="{StaticResource CaptionTextBlockStyle}" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <Rectangle Width="10" Height="8" Fill="{ThemeResource ControlStrongFillColorDisabledBrush}" Opacity="0.45" VerticalAlignment="Center" />
-                                    <TextBlock Text="loading, quitting" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <TextBlock Text="加载、退出" Style="{StaticResource CaptionTextBlockStyle}" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <Rectangle Width="10" Height="8" Fill="{ThemeResource WarnBrush}" Opacity="0.3" VerticalAlignment="Center" />
-                                    <TextBlock Text="loading, compiling shaders" Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <TextBlock Text="加载时编译着色器" Style="{StaticResource CaptionTextBlockStyle}" />
                                 </StackPanel>
                             </StackPanel>
                             <TextBlock Grid.Column="2" Text="{x:Bind Vm.GraphEnd, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                         </Grid>
                     </StackPanel>
-                    <Expander x:Name="EarlierExpander" Header="Earlier sessions" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    <Expander x:Name="EarlierExpander" Header="更早的会话" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                               Visibility="{x:Bind Vm.HasEarlierSessions, Mode=OneWay}">
                         <ItemsRepeater ItemsSource="{x:Bind Vm.EarlierSessions, Mode=OneWay}" ItemTemplate="{StaticResource DetailRow}" MaxWidth="620" HorizontalAlignment="Left">
                             <ItemsRepeater.Layout><StackLayout Spacing="6" /></ItemsRepeater.Layout>
                         </ItemsRepeater>
                     </Expander>
-                    <Expander x:Name="SlowFramesExpander" Header="Slow frames" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    <Expander x:Name="SlowFramesExpander" Header="慢帧" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                               Visibility="{x:Bind Vm.HasFrames, Mode=OneWay}">
                         <StackPanel Spacing="8" MaxWidth="620" HorizontalAlignment="Left">
                             <TextBlock Text="{x:Bind Vm.FramesSummary, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
@@ -374,36 +374,36 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Careful compile" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="谨慎编译" Style="{StaticResource BodyStrongTextBlockStyle}" />
                                 <TextBlock Text="{x:Bind Vm.CarefulNote, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                             </StackPanel>
                             <ToggleSwitch x:Name="CarefulSwitch" Grid.Column="1" MinWidth="0" VerticalAlignment="Top" OnContent="" OffContent=""
                                           IsOn="{x:Bind Vm.CarefulOn, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanToggleCareful, Mode=OneWay}" Toggled="OnCarefulToggled"
-                                          AutomationProperties.Name="Careful compile" AutomationProperties.HelpText="{x:Bind Vm.CarefulNote, Mode=OneWay}" />
+                                          AutomationProperties.Name="谨慎编译" AutomationProperties.HelpText="{x:Bind Vm.CarefulNote, Mode=OneWay}" />
                         </Grid>
                         <StackPanel x:Name="KeptPanel" Spacing="2" Visibility="{x:Bind Vm.HasKept, Mode=OneWay}">
-                            <TextBlock Text="Kept aside" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="已另存" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <TextBlock Text="{x:Bind Vm.KeptSize, Mode=OneWay}" TextWrapping="Wrap" />
                             <TextBlock Text="{x:Bind Vm.KeptState, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                         </StackPanel>
                         <StackPanel Spacing="4">
-                            <TextBlock Text="When this game has new shaders" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="此游戏出现新着色器时" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <ComboBox x:Name="NewShadersBox" ItemsSource="{x:Bind Vm.NewShadersChoices, Mode=OneWay}" SelectedIndex="{x:Bind Vm.NewShadersIndex, Mode=OneWay}"
-                                      SelectionChanged="OnNewShadersChanged" AutomationProperties.Name="When this game has new shaders" />
+                                      SelectionChanged="OnNewShadersChanged" AutomationProperties.Name="此游戏出现新着色器时" />
                         </StackPanel>
                         <StackPanel Spacing="4" Visibility="{x:Bind Vm.ShowRayTracing, Mode=OneWay}">
-                            <TextBlock Text="Ray tracing shaders" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="光追着色器" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <ComboBox x:Name="RayTracingBox" ItemsSource="{x:Bind Vm.RayTracingChoices, Mode=OneWay}" SelectedIndex="{x:Bind Vm.RayTracingIndex, Mode=OneWay}"
-                                      SelectionChanged="OnRayTracingChanged" AutomationProperties.Name="Ray tracing shaders" />
+                                      SelectionChanged="OnRayTracingChanged" AutomationProperties.Name="光追着色器" />
                         </StackPanel>
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Leave out of Add all ready" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+                            <TextBlock Text="不参与“全部加入就绪项”" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
                             <ToggleSwitch x:Name="LeftOutSwitch" Grid.Column="1" MinWidth="0" VerticalAlignment="Top" OnContent="" OffContent=""
-                                          IsOn="{x:Bind Vm.LeftOutOn, Mode=OneWay}" Toggled="OnLeftOutToggled" AutomationProperties.Name="Leave out of Add all ready" />
+                                          IsOn="{x:Bind Vm.LeftOutOn, Mode=OneWay}" Toggled="OnLeftOutToggled" AutomationProperties.Name="不参与“全部加入就绪项”" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -416,14 +416,14 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Spacing="2">
-                                <TextBlock Text="Record while I play" Style="{StaticResource Section}" />
+                                <TextBlock Text="游玩时录制" Style="{StaticResource Section}" />
                                 <TextBlock Text="{x:Bind Vm.RecordNote, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                                 <HyperlinkButton Content="{x:Bind Vm.UseDefaultText, Mode=OneWay}" Click="OnUseDefault" Padding="0" Margin="0,2,0,0"
                                                  Visibility="{x:Bind Vm.ShowUseDefault, Mode=OneWay}" />
                             </StackPanel>
                             <ToggleSwitch x:Name="RecordSwitch" Grid.Column="1" MinWidth="0" VerticalAlignment="Top" OnContent="" OffContent=""
                                           IsOn="{x:Bind Vm.RecordOn, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanToggleRecord, Mode=OneWay}" Toggled="OnRecordToggled"
-                                          AutomationProperties.Name="Record while I play" AutomationProperties.HelpText="{x:Bind Vm.RecordNote, Mode=OneWay}" />
+                                          AutomationProperties.Name="游玩时录制" AutomationProperties.HelpText="{x:Bind Vm.RecordNote, Mode=OneWay}" />
                         </Grid>
                         <Grid ColumnSpacing="12" Visibility="{x:Bind Vm.HasAntiCheat, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
@@ -439,7 +439,7 @@
                                           AutomationProperties.Name="{x:Bind Vm.AntiCheatRecordTitle, Mode=OneWay}" AutomationProperties.HelpText="{x:Bind Vm.AntiCheatRecordNote, Mode=OneWay}" />
                         </Grid>
                         <StackPanel Spacing="14" Visibility="{x:Bind Vm.ShowOfflineOn, Mode=OneWay}">
-                            <InfoBar IsOpen="True" IsClosable="False" Severity="Error" Title="Ban risk" Message="{x:Bind Vm.OfflineRiskText, Mode=OneWay}" />
+                            <InfoBar IsOpen="True" IsClosable="False" Severity="Error" Title="封禁风险" Message="{x:Bind Vm.OfflineRiskText, Mode=OneWay}" />
                             <InfoBar Severity="Informational" IsClosable="False" IsOpen="{x:Bind Vm.HasSessionNote, Mode=OneWay}" Visibility="{x:Bind Vm.HasSessionNote, Mode=OneWay}"
                                      Message="{x:Bind Vm.SessionNote, Mode=OneWay}" />
                             <Button HorizontalAlignment="Right" Content="{x:Bind Vm.OfflineButtonText, Mode=OneWay}" Click="OnRecordOffline" IsEnabled="{x:Bind Vm.CanStartOffline, Mode=OneWay}"
@@ -467,11 +467,11 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{x:Bind Vm.RecordingSize, Mode=OneWay}" Style="{StaticResource Secondary}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Content="Clear recording" Click="OnClearRecording" IsEnabled="{x:Bind Vm.CanClearRecording, Mode=OneWay}"
+                                <Button Grid.Column="1" Content="清除录制数据" Click="OnClearRecording" IsEnabled="{x:Bind Vm.CanClearRecording, Mode=OneWay}"
                                         ToolTipService.ToolTip="{x:Bind Vm.ClearRecordingTip, Mode=OneWay}" />
                             </Grid>
                         </StackPanel>
-                        <TextBlock Text="Play with it on and your last session shows here: how much was ready and what still stuttered."
+                        <TextBlock Text="开启录制后游玩，上次会话的缓存命中和卡顿情况会显示在这里。"
                                    Style="{StaticResource Secondary}" TextWrapping="Wrap" Visibility="{x:Bind Vm.ShowSessionHint, Mode=OneWay}" />
                         <StackPanel Spacing="10" Visibility="{x:Bind Vm.HasSession, Mode=OneWay}">
                             <Rectangle Height="1" Fill="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,0,0,4" />
@@ -504,13 +504,13 @@
                                     <RowDefinition />
                                 </Grid.RowDefinitions>
                                 <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-                                <TextBlock Grid.Column="1" Text="Ready in the game's own library" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Column="1" Text="游戏自带缓存已就绪" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                                 <TextBlock Grid.Column="2" Text="{x:Bind Vm.FromLibrary, Mode=OneWay}" Style="{StaticResource Secondary}" />
                                 <Rectangle Grid.Row="1" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Ready in the driver cache" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="驱动缓存已就绪" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="{x:Bind Vm.CacheHits, Mode=OneWay}" Style="{StaticResource Secondary}" />
                                 <Rectangle Grid.Row="2" Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{ThemeResource WarnBrush}" />
-                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Compiled during play" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="游玩时编译" Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                                 <TextBlock Grid.Row="2" Grid.Column="2" Text="{x:Bind Vm.Compiles, Mode=OneWay}" Style="{StaticResource Secondary}" />
                             </Grid>
                         </StackPanel>

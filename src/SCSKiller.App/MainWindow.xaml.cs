@@ -73,7 +73,7 @@ public sealed partial class MainWindow : Window
     public void ShowGpu()
     {
         GpuName.Text = App.Core.Vendor.Gpu.Name;
-        GpuDriver.Text = (App.Core as ScsKiller)?.GpuRestartNote ?? "Driver " + App.Core.Vendor.Gpu.DriverVersion;
+        GpuDriver.Text = (App.Core as ScsKiller)?.GpuRestartNote ?? "驱动 " + App.Core.Vendor.Gpu.DriverVersion;
     }
 
     public void Navigate(Type page, object? arg = null) => ContentFrame.Navigate(page, arg);
@@ -90,9 +90,9 @@ public sealed partial class MainWindow : Window
     {
         var ready = Updater.Ready;   // once: a check may replace it meanwhile
         UpdateButton.Visibility = ready != null ? Visibility.Visible : Visibility.Collapsed;
-        ToolTipService.SetToolTip(UpdateButton, Updater.Problem ?? $"SCSKiller {ready} is ready. Restarting stops a running compile safely " +
-            "(the driver saves its cache first) and continues it afterwards." +
-            (Updater.InstallsAutomatically ? " Otherwise it installs the next time SCSKiller starts or quits." : ""));
+        ToolTipService.SetToolTip(UpdateButton, Updater.Problem ?? $"SCSKiller {ready} 已准备就绪。重启前会安全停止正在运行的编译，" +
+            "等待驱动保存缓存，随后继续编译。" +
+            (Updater.InstallsAutomatically ? " 否则会在下次启动或退出 SCSKiller 时安装。" : ""));
     }
 
     static (IReadOnlyList<NewsItem> Shown, IReadOnlySet<string> Unread) Notifications() =>
@@ -106,7 +106,7 @@ public sealed partial class MainWindow : Window
         var unread = Notifications().Unread.Count;
         BellBadge.Value = unread;
         BellBadge.Visibility = unread > 0 ? Visibility.Visible : Visibility.Collapsed;
-        AutomationProperties.SetName(BellButton, unread > 0 ? $"Notifications, {unread} unread" : "Notifications");
+        AutomationProperties.SetName(BellButton, unread > 0 ? $"通知，{unread} 条未读" : "Notifications");
     }
 
     void OnBellOpening(object _, object __)
@@ -127,7 +127,7 @@ public sealed partial class MainWindow : Window
             Children =
             {
                 new TextBlock { Text = "Notifications", Style = Res<Style>("Section") },
-                shown.Count == 0 ? new TextBlock { Text = "Nothing new.", Style = Res<Style>("Secondary") } : new ScrollViewer { MaxHeight = 480, Content = list },
+                shown.Count == 0 ? new TextBlock { Text = "没有新内容。", Style = Res<Style>("Secondary") } : new ScrollViewer { MaxHeight = 480, Content = list },
             },
         };
     }
@@ -144,7 +144,7 @@ public sealed partial class MainWindow : Window
         if (item.Link != null) actions.Children.Add(new HyperlinkButton { Content = "Open", NavigateUri = new Uri(item.Link) });
         if (item.Game != null)
         {
-            var go = new Button { Content = "Go to game" };
+            var go = new Button { Content = "前往游戏" };
             go.Click += (_, _) => { BellFlyout.Hide(); Navigate(typeof(DetailPage), item.Game); };
             actions.Children.Add(go);
         }
@@ -174,10 +174,10 @@ public sealed partial class MainWindow : Window
     async void OnRestartToUpdate(object _, RoutedEventArgs __)
     {
         UpdateButton.IsEnabled = false;
-        UpdateText.Text = "Finishing the compile…";
+        UpdateText.Text = "正在结束编译…";
         SavePlacement();   // the restart exits without closing the window
         if (await Updater.RestartAsync()) return;   // exits
-        (UpdateButton.IsEnabled, UpdateText.Text) = (true, "Restart to update");
+        (UpdateButton.IsEnabled, UpdateText.Text) = (true, "重启以更新");
         ShowUpdate();
     }
 
@@ -300,7 +300,7 @@ public sealed partial class MainWindow : Window
             var acWas = fake.Games.First(g => g.Game.Id == ac).AntiCheat;
             fake.SetKept(gb, new(2_870_000_000, 1_650_000_000));
             fake.SetKept(restored, new(2_360_000_000, 0, DateTimeOffset.Now.AddHours(-1)));
-            fake.SetKept(locked, new(4_300_000_000, 0, DateTimeOffset.Now.AddHours(-3), 1, "the Radeon overlay"));
+            fake.SetKept(locked, new(4_300_000_000, 0, DateTimeOffset.Now.AddHours(-3), 1, "Radeon 覆盖层"));
             fake.SetKept(ac, new(1_930_000_000, 1_240_000_000), AntiCheat.EasyAntiCheat);
             foreach (var theme in themes)
             {
@@ -677,7 +677,7 @@ public sealed partial class MainWindow : Window
             BellFlyout.Hide();
             var dialog = new ContentDialog
             {
-                XamlRoot = Root.XamlRoot, Title = "Rename Sample", Content = new TextBox { Header = "Name", Text = "Sample" }, PrimaryButtonText = "Rename", CloseButtonText = "Cancel",
+                XamlRoot = Root.XamlRoot, Title = "Rename Sample", Content = new TextBox { Header = "Name", Text = "Sample" }, PrimaryButtonText = "重命名", CloseButtonText = "取消",
             };
             _ = App.ShowAsync(dialog);
             await Task.Delay(800);
@@ -712,11 +712,11 @@ public sealed partial class MainWindow : Window
             foreach (var (name, info) in new (string, BeforeAfterInfo?)[]
                      {
                          ("none", null), ("armed", new(BeforeAfterStage.BeforeArmed, 5, null, 0)),
-                         ("clear-pending", new(BeforeAfterStage.BeforeArmed, 5, "Couldn't clear the cache: a file is in use", 0, ClearPending: true)), ("playing", new(BeforeAfterStage.BeforePlaying, 5, null, 78)),
+                         ("clear-pending", new(BeforeAfterStage.BeforeArmed, 5, "无法清空缓存：有文件正在使用", 0, ClearPending: true)), ("playing", new(BeforeAfterStage.BeforePlaying, 5, null, 78)),
                          ("compiling", new(BeforeAfterStage.Compiling, 5, null, 0)),
-                         ("compile-stopped", new(BeforeAfterStage.Compiling, 5, "The compile was stopped. Compile again to go on.", 0)),
+                         ("compile-stopped", new(BeforeAfterStage.Compiling, 5, "编译已停止。再次编译即可继续。", 0)),
                          ("after-ready", new(BeforeAfterStage.AfterReady, 5, null, 0)),
-                         ("after-short", new(BeforeAfterStage.AfterArmed, 5, "The after recording was 2 min of play. Play at least 3, the game compiles again first.", 0)),
+                         ("after-short", new(BeforeAfterStage.AfterArmed, 5, "“之后”的录制只玩了 2 分钟。请至少玩 3 分钟，游戏会先重新编译。", 0)),
                          ("timesup", new(BeforeAfterStage.AfterPlaying, 5, null, 305)), ("done", new(BeforeAfterStage.Done, 5, null, 0)),
                          ("voided", new(BeforeAfterStage.AfterReady, 5, ScsKiller.DriverVoidNote, 0)),
                      })
@@ -731,7 +731,7 @@ public sealed partial class MainWindow : Window
         foreach (var (name, info) in new (string, BeforeAfterInfo)[]
                  {
                      ("playing", new(BeforeAfterStage.BeforePlaying, 10, null, 78)), ("armed", new(BeforeAfterStage.BeforeArmed, 5, null, 0)),
-                     ("done", new(BeforeAfterStage.Done, 5, null, 0)), ("compile-stopped", new(BeforeAfterStage.Compiling, 5, "The compile was stopped. Compile again to go on.", 0)),
+                     ("done", new(BeforeAfterStage.Done, 5, null, 0)), ("compile-stopped", new(BeforeAfterStage.Compiling, 5, "编译已停止。再次编译即可继续。", 0)),
                  })
         {
             fake.SetBeforeAfter(lop, info);
@@ -743,8 +743,8 @@ public sealed partial class MainWindow : Window
         fake.SetBeforeAfter(lop, null);
         foreach (var (name, why) in new[]
                  {
-                     ("recorder-off", "Turn the recorder on for this game first"), ("recorder-cant", $"The recorder can't run in this game: {ScsKiller.SkipForeignDll}"),
-                     ("api", "Only for DirectX 12 and DirectX 11 games"), ("anti-cheat", "Not for games with anti-cheat"),
+                     ("recorder-off", "请先为此游戏开启录制器"), ("recorder-cant", $"The recorder can't run in this game: {ScsKiller.SkipForeignDll}"),
+                     ("api", "Only for DirectX 12 and DirectX 11 games"), ("反作弊组件", "Not for games with anti-cheat"),
                      ("no-stutter", "Not for games without shader compilation stutter"), ("refused", ScsKiller.NeverSawNote),
                      ("running", "Ghostrunner is running"), ("compiling", "Wait for the compile to finish"), ("shared", "Its driver cache is shared with Hi-Fi RUSH"),
                  })

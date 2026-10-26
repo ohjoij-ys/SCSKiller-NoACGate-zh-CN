@@ -6,21 +6,21 @@ namespace SCSKiller.Core.App;
 
 public sealed partial class ScsKiller
 {
-    public const string NoStartNote = "Didn't see the game start";
-    public const string LostNote = "The game started again before SCSKiller read the run, so it's lost";
-    public const string DriverVoidNote = "The driver changed since the before recording, start over";
-    public const string BuildVoidNote = "The game was updated since the before recording, start over";
-    public const string NotCompiledNote = "The compile didn't finish, compile again";
-    public const string StoppedNote = "The compile was stopped";
-    public const string DirtyNote = "The game ran after the compile, Continue compiles again first";
-    public const string DriverRedoNote = "The driver was updated, play the before run again";
-    public const string BuildRedoNote = "The game was updated, play the before run again";
-    public const string RecorderNotReadyNote = "The recorder isn't ready, so the run wouldn't be measured: ";
-    public const string OldCacheNote = "Old driver cache files were in use: close the game and play the before run again";
-    public const string OldCacheRedoNote = "Old driver cache files were in use, play the before run again";
-    public const string UnseenRedoNote = "SCSKiller wasn't running during the before run, so it couldn't check the driver cache: play it again";
-    public const string FramesStoppedNote = "Frame times stopped when frame generation started, so this run can't be measured. Turn frame generation off for the before and after recording";
-    public const string RestoreFailedNote = "Couldn't put back {0} of AMD's DirectX 11 cache files: they're in {1}";
+    public const string NoStartNote = "没有看到游戏启动";
+    public const string LostNote = "游戏在 SCSKiller 读取本次运行前又启动了，这次记录已丢失";
+    public const string DriverVoidNote = "录制前那次之后驱动已变，请重新开始";
+    public const string BuildVoidNote = "录制前那次之后游戏已更新，请重新开始";
+    public const string NotCompiledNote = "编译没有跑完，请重新编译";
+    public const string StoppedNote = "编译已停止";
+    public const string DirtyNote = "编译之后游戏运行过，继续会先重新编译";
+    public const string DriverRedoNote = "驱动已更新，请重做「录制前」那次运行";
+    public const string BuildRedoNote = "游戏已更新，请重做「录制前」那次运行";
+    public const string RecorderNotReadyNote = "录制器尚未就绪，这次运行无法测量：";
+    public const string OldCacheNote = "旧的驱动缓存文件仍被占用：请关闭游戏，重做「录制前」那次运行";
+    public const string OldCacheRedoNote = "旧的驱动缓存文件仍被占用，请重做「录制前」那次运行";
+    public const string UnseenRedoNote = "「录制前」那次运行时 SCSKiller 没有在运行，因此无法核对驱动缓存：请重做一次";
+    public const string FramesStoppedNote = "帧生成开始时帧时间记录就停止了，这次运行无法测量。请为「录制前」和「录制后」关闭帧生成";
+    public const string RestoreFailedNote = "AMD 的 DirectX 11 缓存文件中有 {0} 个没能放回：它们在 {1}";
     // PlayReadEvery: every poll, so the app's countdown stays within a poll of the one in the game, which counts live
     static readonly TimeSpan NoStartAfter = TimeSpan.FromMinutes(5), PlayReadEvery = TimeSpan.FromSeconds(2);
 
@@ -38,21 +38,21 @@ public sealed partial class ScsKiller
         // NVIDIA, DirectX 11: the recorder isn't in the game, the pair puts it in (Frames11)
         var frames11 = Frames11(s.Engine, Vendor.Caps);
         var skip = frames11 ? PairRecorderSkip(s, rec) : s.RecorderSkip;
-        return !Settings.BeforeAfter ? "Before and after recording is off in Settings"
-            : s.Engine?.GraphicsApi is not { } api || !api.Contains("D3D12") && !api.StartsWith("D3D11") ? "Only for DirectX 12 and DirectX 11 games"
-            : s.AnyAntiCheat ? "Not for games with anti-cheat"
-            : s.NoStutter != null ? "Not for games without shader compilation stutter"
+        return !Settings.BeforeAfter ? "设置中已关闭「录制前后对比」"
+            : s.Engine?.GraphicsApi is not { } api || !api.Contains("D3D12") && !api.StartsWith("D3D11") ? "仅支持 DirectX 12 和 DirectX 11 的游戏"
+            : s.AnyAntiCheat ? "不支持有反作弊的游戏"
+            : s.NoStutter != null ? "不支持没有着色器编译卡顿的游戏"
             : !(frames11 ? RecorderWanted(s.RecorderOverride, Settings.RecordAllGames, skip, true) : s.RecorderEffective)
-                ? skip != null ? $"The recorder can't run in this game: {skip}" : "Turn the recorder on for this game first"
+                ? skip != null ? $"录制器无法在此游戏中运行：{skip}" : "请先为此游戏开启录制器"
             // a note the recorder's set-up already fixed ("play again") doesn't keep the next launch from being recorded
             : s.RecorderRefused is { } refused && refused != GameChangedNote && !refused.StartsWith(RanOtherExe) ? refused
             : s.Status is not (GameStatus.Ready or GameStatus.Warmed or GameStatus.Stale or GameStatus.NeedsRecording) ? s.StatusReason
-            : s.Playing || GameRunning(s.Game) ? $"{s.Game.Name} is running"
-            : compiling ? "Wait for the compile to finish"
-            : rec.BeforeAfter is { Stage: not Done } ? "A before and after recording is already in progress"
+            : s.Playing || GameRunning(s.Game) ? $"{s.Game.Name} 正在运行"
+            : compiling ? "请等编译完成"
+            : rec.BeforeAfter is { Stage: not Done } ? "已有一次录制前后对比在进行"
             // Clear cache would refuse
             : AppCache != null && DriverKeys(s.Game, rec).Keys is { Count: > 0 } keys && SharedWith(gameId, keys) is { Count: > 0 } shared
-                ? $"Its driver cache is shared with {string.Join(", ", shared.Select(x => x.Name))}"
+                ? $"其驱动缓存与 {string.Join("、", shared.Select(x => x.Name))} 共用"
             : null;
     }
 
@@ -98,11 +98,11 @@ public sealed partial class ScsKiller
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { installed = current = iniReady = false; }
         if (installed && current && iniReady && Attested(s.Game)) return;
-        throw new InvalidOperationException(RecorderNotReadyNote + (s.RecorderSkip ?? (s.RecorderNote == NoteForeignIni ? "its scskiller.ini isn't SCSKiller's" : s.RecorderNote) ?? _unstamped.GetValueOrDefault(gameId)
-            ?? (!s.RecorderEffective ? "it's off for this game"
-                : installed && !current ? "another SCSKiller's recorder is in the game and couldn't be replaced"
-                : installed && !iniReady ? "its scskiller.ini isn't SCSKiller's"
-                : installed ? "the game's folder is still being checked, try again in a moment" : "it couldn't be installed")));
+        throw new InvalidOperationException(RecorderNotReadyNote + (s.RecorderSkip ?? (s.RecorderNote == NoteForeignIni ? "其 scskiller.ini 不属于 SCSKiller" : s.RecorderNote) ?? _unstamped.GetValueOrDefault(gameId)
+            ?? (!s.RecorderEffective ? "此游戏已关闭录制"
+                : installed && !current ? "游戏中的是另一个 SCSKiller 的录制器，且无法替换"
+                : installed && !iniReady ? "其 scskiller.ini 不属于 SCSKiller"
+                : installed ? "游戏目录仍在检查，请稍后再试" : "无法安装")));
     }
 
     public void ContinueBeforeAfter(string gameId)
@@ -115,13 +115,13 @@ public sealed partial class ScsKiller
             lock (_setAsideLock)   // a poll puts back files set aside for a run that isn't armed
             {
                 try { (pending.Survivors, pending.ClearGap) = ClearBeforeRun(gameId); }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw new InvalidOperationException($"Couldn't clear the cache: {e.Message}", e); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw new InvalidOperationException($"无法清空缓存：{e.Message}", e); }
                 (pending.ArmedAt, pending.ClearPending, pending.Problem) = (Clock(), false, null);
                 Changed(s.Game, rec);
             }
             return;
         }
-        if (rec.BeforeAfter is not { Stage: AfterReady or BeforeAfterStage.Compiling } ba) throw new InvalidOperationException("There's no after recording to continue");
+        if (rec.BeforeAfter is not { Stage: AfterReady or BeforeAfterStage.Compiling } ba) throw new InvalidOperationException("没有可继续的「录制后」");
         if (Voided(s.Game, ba) is { } why) throw new InvalidOperationException(why);
         Idle(s.Game);
         ba.Dirty |= LaunchesAfter(s.Game, rec, ba.ArmedAt).After.Count > 0;   // played while the app was closed
@@ -138,7 +138,7 @@ public sealed partial class ScsKiller
     {
         var g = Find(gameId).Game;
         var rec = Store.LoadGame(gameId);
-        if (rec.BeforeAfter is not { Stage: Done } ba) throw new InvalidOperationException("There's no finished before and after recording");
+        if (rec.BeforeAfter is not { Stage: Done } ba) throw new InvalidOperationException("没有已完成的录制前后对比");
         if (Voided(g, ba) is { } why) throw new InvalidOperationException(why);
         Idle(g);
         if (ba.After is { } after) Snapshots.Pin(Store, gameId, after, null);
@@ -204,15 +204,15 @@ public sealed partial class ScsKiller
     /// after run measures.</summary>
     string? PairHoldsCache(string gameId, bool compiling = false) => Store.LoadGame(gameId).BeforeAfter?.Stage switch
     {
-        BeforeArmed or BeforePlaying when compiling => "Its before recording is still to come, end the before and after recording to compile now",
-        BeforeAfterStage.Compiling or AfterReady or AfterArmed or AfterPlaying when !compiling => "Its before and after recording needs this cache, end it first",
+        BeforeArmed or BeforePlaying when compiling => "「录制前」那次还没做，现在编译请先结束录制前后对比",
+        BeforeAfterStage.Compiling or AfterReady or AfterArmed or AfterPlaying when !compiling => "录制前后对比需要这份缓存，请先结束它",
         _ => null,
     };
 
     void Idle(Game g)
     {
-        if (IsPlaying(g.Id) || GameRunning(g)) throw new InvalidOperationException($"{g.Name} is running");
-        if (QueueItemOf(g.Id) is { } q && !Finished(q.Stage)) throw new InvalidOperationException("Wait for the compile to finish");
+        if (IsPlaying(g.Id) || GameRunning(g)) throw new InvalidOperationException($"{g.Name} 正在运行");
+        if (QueueItemOf(g.Id) is { } q && !Finished(q.Stage)) throw new InvalidOperationException("请等编译完成");
     }
 
     void Unpin(string gameId, BeforeAfterRecord ba)
@@ -254,7 +254,7 @@ public sealed partial class ScsKiller
         try { ClearCache(g.Id, gamePrecache: true); }
         catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            ba.Problem = $"Couldn't clear the cache: {e.Message}";
+            ba.Problem = $"无法清空缓存：{e.Message}";
             if (QueueItemOf(g.Id) is { } q && Finished(q.Stage)) Remove(g.Id);   // an earlier compile's Done isn't this one's
             Changed(g, rec);
             return;
@@ -630,7 +630,7 @@ public sealed partial class ScsKiller
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                (ba.ClearPending, ba.Problem) = (true, $"Couldn't clear the cache: {e.Message}");
+                (ba.ClearPending, ba.Problem) = (true, $"无法清空缓存：{e.Message}");
             }
             Changed(g, rec);
         }

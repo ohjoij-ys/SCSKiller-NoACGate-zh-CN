@@ -21,7 +21,7 @@ sealed class Tray : IDisposable
     /// <summary>Left click, and the menu's first item.</summary>
     public required Action Open { get; init; }
     readonly Core.App.TrayClicks _clicks = new((int)GetDoubleClickTime());
-    /// <summary>The menu's middle item: "Pause compiling" or "Resume", null = nothing to pause (shown disabled).</summary>
+    /// <summary>The menu's middle item: "暂停编译" or "Resume", null = nothing to pause (shown disabled).</summary>
     public required Func<string?> PauseLabel { get; init; }
     public required Action PauseOrResume { get; init; }
     public required Action Quit { get; init; }
@@ -72,9 +72,9 @@ sealed class Tray : IDisposable
     void ShowMenu()
     {
         var menu = CreatePopupMenu();
-        AppendMenuW(menu, 0 /* MF_STRING */, IdOpen, "Open SCSKiller");
+        AppendMenuW(menu, 0 /* MF_STRING */, IdOpen, "打开 SCSKiller");
         var pause = PauseLabel();
-        AppendMenuW(menu, pause == null ? 0x1u /* MF_GRAYED */ : 0, IdPause, pause ?? "Pause compiling");
+        AppendMenuW(menu, pause == null ? 0x1u /* MF_GRAYED */ : 0, IdPause, pause ?? "暂停编译");
         AppendMenuW(menu, 0x800 /* MF_SEPARATOR */, 0, null);
         AppendMenuW(menu, 0, IdQuit, QuitLabel());
         GetCursorPos(out var pt);

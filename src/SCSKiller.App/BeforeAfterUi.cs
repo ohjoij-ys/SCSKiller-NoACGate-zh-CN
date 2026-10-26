@@ -15,7 +15,7 @@ static class BeforeAfterUi
     /// <summary>Screenshots: the intro dialog while it's open.</summary>
     public static ContentDialog? Showing { get; private set; }
 
-    /// <summary>The intro (doc 6.5): the steps (folded behind "How it works" once seen), the play time and the sound.
+    /// <summary>The intro (doc 6.5): the steps (folded behind "工作原理" once seen), the play time and the sound.
     /// Null = cancelled, or <see cref="Intro.HowItWorks"/>. <paramref name="frames11"/>: the pair puts a frames-only
     /// d3d11.dll into the game (<see cref="Core.App.ScsKiller.Frames11"/>).</summary>
     public static async Task<(int Minutes, bool Sound, bool Overlay)?> IntroAsync(XamlRoot root, string game, Intro mode, bool frames11 = false)
@@ -26,23 +26,23 @@ static class BeforeAfterUi
         TextBlock Line(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };
         var (step1, step3) = (Line(""), Line(""));
         void Steps() => (step1.Text, step3.Text) = (
-            $"1. SCSKiller deletes this game's shader caches (the driver's, Windows' and the game's own) and starts the game. Load a save you can load again and play. The {minutes} minutes count from the game's first frame, loading and pauses included.",
-            $"3. Load the same save and play the same {minutes} minutes.");
+            $"1. SCSKiller 会删除此游戏的着色器缓存（驱动的、Windows 的和游戏自身的），然后启动游戏。读取一个可再次读取的存档并开始游玩。{minutes} 分钟从游戏首帧算起，包含加载和暂停时间。",
+            $"3. 读取同一个存档，同样游玩 {minutes} 分钟。");
         Steps();
         var steps = new StackPanel
         {
             Spacing = 8, Visibility = full ? Visibility.Visible : Visibility.Collapsed,
-            Children = { step1, Line("2. Close the game. SCSKiller deletes the caches again and compiles the game's shaders."), step3,
-                Line("4. You get a before and after report you can save and share.") },
+            Children = { step1, Line("2. 关闭游戏。SCSKiller 会再次删除缓存，并编译游戏的着色器。"), step3,
+                Line("4. 你会得到一份可保存、可分享的前后对比报告。") },
         };
-        var how = new HyperlinkButton { Content = "How it works", Padding = new Thickness(0), Visibility = full ? Visibility.Collapsed : Visibility.Visible };
+        var how = new HyperlinkButton { Content = "工作原理", Padding = new Thickness(0), Visibility = full ? Visibility.Collapsed : Visibility.Visible };
         how.Click += (_, _) => (steps.Visibility, how.Visibility) = (Visibility.Visible, Visibility.Collapsed);
 
-        var time = new RadioButtons { Header = "Play time", MaxColumns = 2, Items = { "5 minutes", "10 minutes" }, SelectedIndex = 0 };
+        var time = new RadioButtons { Header = "游玩时长", MaxColumns = 2, Items = { "5 minutes", "10 minutes" }, SelectedIndex = 0 };
         time.SelectionChanged += (_, _) => { minutes = time.SelectedIndex == 1 ? 10 : 5; Steps(); };
-        var sound = new CheckBox { Content = "Play a sound when the time is up", IsChecked = s.BeforeAfterSound };
-        var overlay = new CheckBox { Content = "Show the countdown in the game", IsChecked = s.BeforeAfterOverlay };
-        ToolTipService.SetToolTip(overlay, "A small panel at the top right of the game: the time left, your frame times and, on DirectX 12, each shader compilation stutter. SCSKiller counts down here either way. It isn't shown with FSR or XeSS frame generation on.");
+        var sound = new CheckBox { Content = "时间到时播放提示音", IsChecked = s.BeforeAfterSound };
+        var overlay = new CheckBox { Content = "在游戏内显示倒计时", IsChecked = s.BeforeAfterOverlay };
+        ToolTipService.SetToolTip(overlay, "游戏右上角的小面板：剩余时间、帧时间，以及在 DirectX 12 上的每次着色器编译卡顿。无论如何 SCSKiller 都会在此倒计时。开启 FSR 或 XeSS 帧生成时不会显示。");
         var checks = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Children = { sound, overlay } };
         var choices = new Grid { ColumnSpacing = 24, ColumnDefinitions = { new(), new() { Width = GridLength.Auto } }, Children = { time, checks } };
         Grid.SetColumn(checks, 1);
@@ -55,7 +55,7 @@ static class BeforeAfterUi
         };
         var dialog = new ContentDialog
         {
-            XamlRoot = root, Title = mode == Intro.StartOver ? $"Start over with {game}?" : "Before and after recording",
+            XamlRoot = root, Title = mode == Intro.StartOver ? $"重新开始 {game} 的前后对比？" : "Before and after recording",
             Content = new ScrollViewer
             {
                 Content = new StackPanel
@@ -66,7 +66,7 @@ static class BeforeAfterUi
                         new InfoBar
                         {
                             IsOpen = true, IsClosable = false, Severity = InfoBarSeverity.Warning,
-                            Message = "This also deletes the game's own shader cache, which isn't backed up and can be 2 GB. The game rebuilds it, which can take minutes.",
+                            Message = "这也会删除游戏自身的着色器缓存，该缓存不会被备份，可能达 2 GB。游戏会重建它，可能需要几分钟。",
                         },
                         steps, how, choices,
                         new StackPanel
@@ -74,17 +74,17 @@ static class BeforeAfterUi
                             Spacing = 6,
                             Children =
                             {
-                                Bullet("Don't change graphics settings between the two runs."),
-                                Bullet("Your current compile for this game is deleted, it's compiled again in step 2."),
-                                Bullet("A small d3d11.dll goes next to the game for this recording only, then it's removed.", frames11),
-                                Bullet("Frame times stay on this PC. With sharing on, the usual anonymous hashes are sent."),
+                                Bullet("两次运行之间不要更改画质设置。"),
+                                Bullet("此游戏现有的编译结果会被删除，第 2 步会重新编译。"),
+                                Bullet("仅本次录制会在游戏旁放入一个小的 d3d11.dll，之后会被移除。", frames11),
+                                Bullet("帧时间只保存在本机。若开启了共享，会发送通常的匿名哈希。"),
                             },
                         },
                     },
                 },
             },
-            CloseButtonText = mode == Intro.HowItWorks ? "Close" : "Cancel",
-            PrimaryButtonText = mode == Intro.HowItWorks ? "" : "Start the before run",
+            CloseButtonText = mode == Intro.HowItWorks ? "关闭" : "取消",
+            PrimaryButtonText = mode == Intro.HowItWorks ? "" : "开始“之前”的运行",
             DefaultButton = mode == Intro.HowItWorks ? ContentDialogButton.Close : ContentDialogButton.Primary,
         };
         Showing = dialog;
@@ -145,23 +145,23 @@ static class BeforeAfterUi
     {
         var dialog = new ContentDialog
         {
-            XamlRoot = root, Title = "Record the after run again?",
-            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "SCSKiller clears the caches and compiles again first, so the new run isn't helped by the last one. Then play the same save again." },
-            PrimaryButtonText = "Record again", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = root, Title = "重新录制“之后”的运行？",
+            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "SCSKiller 会先清空缓存并重新编译，因此新的运行不会受上一次影响。之后请再次读取同一个存档游玩。" },
+            PrimaryButtonText = "重新录制", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Primary,
         };
         if (await App.ShowAsync(dialog) != ContentDialogResult.Primary) return null;
         try { await Task.Run(() => App.Core.RecordAfterAgain(id)); return null; }
         catch (Exception e) { return Describe(e); }
     }
 
-    /// <summary>Cancel in progress: the caches were cleared, so "Compile now" is the default.</summary>
+    /// <summary>Cancel in progress: the caches were cleared, so "立即编译" is the default.</summary>
     public static async Task<string?> CancelAsync(XamlRoot root, string id)
     {
         var dialog = new ContentDialog
         {
-            XamlRoot = root, Title = "Cancel the before and after recording?",
-            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Its shader caches were cleared, so the game stutters until it's compiled again." },
-            PrimaryButtonText = "Compile now", SecondaryButtonText = "Don't compile", CloseButtonText = "Keep going", DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = root, Title = "取消前后对比录制？",
+            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "它的着色器缓存已被清空，在重新编译之前游戏会卡顿。" },
+            PrimaryButtonText = "立即编译", SecondaryButtonText = "Don't compile", CloseButtonText = "Keep going", DefaultButton = ContentDialogButton.Primary,
         };
         var result = await App.ShowAsync(dialog);
         if (result is not (ContentDialogResult.Primary or ContentDialogResult.Secondary)) return null;

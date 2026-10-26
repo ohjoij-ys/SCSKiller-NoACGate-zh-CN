@@ -48,14 +48,14 @@ public sealed partial class SettingsPage : Page
     // Stands in for the website's recorder-anti-cheat page until it exists.
     public ContentDialog AntiCheatDetailsDialog() => new()
     {
-        XamlRoot = XamlRoot, Title = "Recording in games with anti-cheat", CloseButtonText = "Close",
+        XamlRoot = XamlRoot, Title = "在有反作弊的游戏中录制", CloseButtonText = "关闭",
         Content = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = "For one session, SCSKiller puts its recorder (a d3d12.dll) next to the game's exe.\n\n"
-                + "Games with anti-cheat can treat the recorder as cheating and ban your account, during the session or later. No game is known to be safe.\n\n"
-                + "SCSKiller removes every file it places when the game exits, or after a crash at your next logon.\n\n"
-                + "Enabling the recorder in these games is at your own risk. SCSKiller isn't responsible for bans.",
+            Text = "为一次会话，SCSKiller 会把它的录制器（一个 d3d12.dll）放到游戏 exe 旁边。\n\n"
+                + "带反作弊的游戏可能把录制器视为作弊，在会话期间或之后封禁你的账号。目前没有已知安全的游戏。\n\n"
+                + "游戏退出后 SCSKiller 会移除它放入的每个文件；若发生崩溃，则在你下次登录时移除。\n\n"
+                + "在这些游戏中启用录制器风险自负，SCSKiller 不对封禁负责。",
         },
     };
 
@@ -70,7 +70,7 @@ public sealed partial class SettingsPage : Page
             var row = new Grid { ColumnSpacing = 12, ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
             row.Children.Add(new StackPanel { Spacing = 2, Children = { new TextBlock { Text = g.Game.Name, TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = Fmt.KeptSize(g.Kept!), Style = (Style)Application.Current.Resources["Secondary"] } } });
-            var remove = new Button { Content = "Remove", VerticalAlignment = VerticalAlignment.Center };
+            var remove = new Button { Content = "移除", VerticalAlignment = VerticalAlignment.Center };
             remove.Click += (_, _) => { App.Core.DropKeptCache(g.Game.Id); rows.Children.Remove(row); Vm.Refresh(); };
             Grid.SetColumn(remove, 1);
             row.Children.Add(remove);
@@ -78,10 +78,10 @@ public sealed partial class SettingsPage : Page
         }
         return new()
         {
-            XamlRoot = XamlRoot, Title = "Kept aside", CloseButtonText = "Close",
+            XamlRoot = XamlRoot, Title = "已另存", CloseButtonText = "关闭",
             Content = new StackPanel { Spacing = 14, MinWidth = 420, Children =
             {
-                new TextBlock { Text = "Removing frees the space. The game is kept again after its next compile.", TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = "移除后可释放空间。游戏下次编译后会再次保留。", TextWrapping = TextWrapping.Wrap },
                 new ScrollViewer { MaxHeight = 360, Content = rows },
             } },
         };
@@ -98,20 +98,20 @@ public sealed partial class SettingsPage : Page
     async void OnApply(object _, RoutedEventArgs __)
     {
         var (label, limit) = SettingsVm.Sizes[SizeBox.SelectedIndex];
-        if (!await App.ConfirmAsync(this, $"Set the shader cache limit to {label}?",
-                $"This is a global {Fmt.Vendor(App.Core.Vendor.Vendor)} driver setting: it applies to every game on this PC, not only the ones SCSKiller compiles, " +
-                "and stays until you change it. Windows will ask for administrator permission.\n\n" +
-                "Raising it deletes nothing. Lowering it below what is used now makes the driver delete older entries, and those games stutter again. " +
-                "You can switch back to the driver default here at any time.",
-                "Change limit")) return;
+        if (!await App.ConfirmAsync(this, $"将着色器缓存上限设为 {label}？",
+                $"这是 {Fmt.Vendor(App.Core.Vendor.Vendor)} 驱动的全局设置：对本机所有游戏生效，而不只是 SCSKiller 编译的游戏，" +
+                "并会一直保持到你更改为止。Windows 会请求管理员权限。\n\n" +
+                "调高不会删除任何内容。调低到低于当前使用量时，驱动会删除较旧的条目，那些游戏将再次卡顿。" +
+                "你可以随时在这里恢复驱动默认值。",
+                "更改上限")) return;
 
         ApplyButton.IsEnabled = false;
         var size = limit.IsDriverDefault ? "default" : limit.Bytes is { } b ? (b / (double)(1L << 30)).ToString(CultureInfo.InvariantCulture) : "unlimited";
         (Vm.ApplyMessage, Vm.ApplySeverity) = await AsAdminAsync(() => { App.Core.Vendor.SetCacheLimit(limit); return ""; }, ["cache", "set", size, .. RunningGpu]) switch
         {
-            null => ("Cancelled.", InfoBarSeverity.Informational),
-            { Ok: true } => ($"Shader cache limit set to {label}.", InfoBarSeverity.Success),
-            var r => ("The limit was not changed: " + r.Message, InfoBarSeverity.Error),
+            null => ("已取消。", InfoBarSeverity.Informational),
+            { Ok: true } => ($"着色器缓存上限已设为 {label}。", InfoBarSeverity.Success),
+            var r => ("未更改上限：" + r.Message, InfoBarSeverity.Error),
         };
         ApplyButton.IsEnabled = true;
         Vm.Refresh();
@@ -148,18 +148,18 @@ public sealed partial class SettingsPage : Page
                 (Vm.AutoMessage, Vm.AutoSeverity) = (NvidiaBackend.AutoShaderOutcome(level, changed: false), InfoBarSeverity.Success);
                 return;
             }
-            if (!await App.ConfirmAsync(this, level == AutoShaderCompilation.Off ? "Turn off NVIDIA Auto Shader Compilation?" : $"Turn on NVIDIA Auto Shader Compilation ({level})?",
-                    "Auto Shader Compilation is a beta feature by NVIDIA®.", level == AutoShaderCompilation.Off ? "Turn off" : "Turn on")) return;
+            if (!await App.ConfirmAsync(this, level == AutoShaderCompilation.Off ? "关闭 NVIDIA 自动着色器编译？" : $"开启 NVIDIA 自动着色器编译（{level}）？",
+                    "自动着色器编译是 NVIDIA® 的测试版功能。", level == AutoShaderCompilation.Off ? "关闭" : "开启")) return;
 
             // --for-user: the elevated CLI refuses when UAC elevated another administrator (NvOSC would register the task for them).
             string[] cli = ["nvidia-auto-shader", level.ToString().ToLowerInvariant(), Elevated.ForUserArg, Elevated.CurrentUserSid, .. RunningGpu];
             var result = await AsAdminAsync(() => App.Core.Vendor.SetAutoShaderCompilation(level), cli);
-            if (result is { Ok: false } && App.Core is ScsKiller k) k.Log?.Report($"Auto Shader Compilation {level}: {result.Message}");
+            if (result is { Ok: false } && App.Core is ScsKiller k) k.Log?.Report($"自动着色器编译 {level}：{result.Message}");
             (Vm.AutoMessage, Vm.AutoSeverity) = result switch
             {
-                null => ("Cancelled.", InfoBarSeverity.Informational),
+                null => ("已取消。", InfoBarSeverity.Informational),
                 { Ok: true } r => (r.Message is { Length: > 0 } m ? m : NvidiaBackend.AutoShaderOutcome(level, changed: true), InfoBarSeverity.Success),
-                var r => ("Couldn't apply: " + r.Message.Split('\n')[0], InfoBarSeverity.Error),   // NvOSC's full output goes to the log only
+                var r => ("无法应用：" + r.Message.Split('\n')[0], InfoBarSeverity.Error),   // NvOSC's full output goes to the log only
             };
         }
         finally

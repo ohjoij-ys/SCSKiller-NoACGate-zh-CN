@@ -36,7 +36,7 @@ public static class Updater
                 Store.SavePackageTries(t);
             }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log($"Couldn't note the package download: {e.Message}"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log($"无法记录下载信息：{e.Message}"); }
     }
     static string ResumeFile => Path.Combine(DataDir, "resume-queue.txt");
 
@@ -49,7 +49,7 @@ public static class Updater
     static volatile Download? ready;   // one reference: the UI reads it whole while a check replaces it
     static Timer? timer;
     static int failures;   // consecutive checks that couldn't reach the feed
-    static volatile bool asked;   // "Check for updates" was clicked: the running or next check shows its failure at once
+    static volatile bool asked;   // "检查更新" was clicked: the running or next check shows its failure at once
 
     /// <summary>Raised on any thread after <see cref="Ready"/>, <see cref="Checking"/>, <see cref="Downloading"/>,
     /// <see cref="UpToDate"/> or <see cref="Problem"/> changed.</summary>
@@ -88,7 +88,7 @@ public static class Updater
         if (StagedUpdate.Load(DataDir) is not { } s) return null;
         if (s.Refused(FeedTrust.ReleaseKeys) is { } why)
         {
-            Log($"The staged update to {s.Version} was dropped: {why}");
+            Log($"已暂存的 {s.Version} 更新被丢弃：{why}");
             Stage(null);
             return null;
         }
@@ -160,19 +160,19 @@ public static class Updater
         try
         {
             if (Usable(ready) is not { M: var m, R: var r } d)
-                return Fail("The update changed meanwhile. Restart to update again once it is ready.");
+                return Fail("期间更新已发生变化。就绪后请重启以再次更新。");
             if (!await m.OnDisk(r))
             {
                 m.Delete(r);
                 Stage(null);
-                return Fail("The downloaded update is no longer whole on disk. It downloads again at the next check.");
+                return Fail("已下载的更新在磁盘上已不完整，下次检查时会重新下载。");
             }
-            if (!m.OnlyThis(r)) return Fail("An older downloaded update couldn't be removed. The update installs at a later quit.");
+            if (!m.OnlyThis(r)) return Fail("无法删除一个较旧的已下载更新。更新将在之后某次退出时安装。");
             // the marker first, then Busy: a compile worker holds Busy first, then reads the marker (ScsKiller.Work), so
             // one of the two always sees the other
             Busy.MarkApplying(DataDir, DateTimeOffset.UtcNow);
-            if (Busy.IsHeld()) return Undo("A compile started meanwhile. The update installs when SCSKiller quits after it has finished.");
-            if (Usable(ready) is null) return Undo("The update channel changed meanwhile. Restart to update again once it is ready.");
+            if (Busy.IsHeld()) return Undo("期间有编译开始。该编译结束后 SCSKiller 退出时会安装更新。");
+            if (Usable(ready) is null) return Undo("期间更新通道已变更。就绪后请重启以再次更新。");
             if (still?.Invoke(d) == false) return Undo(null);
             if (OfflineBlocks()) return Undo(OfflineRunning);
             Log($"Handing the update to {r.Version} to Update.exe");
@@ -181,7 +181,7 @@ public static class Updater
         }
         catch (Exception e)
         {
-            var undone = Undo("Couldn't hand the update to the installer: " + e.Message);   // the marker first, whatever the log does
+            var undone = Undo("无法把更新交给安装程序：" + e.Message);   // the marker first, whatever the log does
             Log($"Handing the update to Update.exe failed: {e}");
             return undone;
         }
@@ -208,7 +208,7 @@ public static class Updater
         }
     }
 
-    const string OfflineRunning = "A recording session's game or cleanup is running. The update installs once it has ended.";
+    const string OfflineRunning = "正在运行录制会话中的游戏或清理。结束后将安装更新。";
 
     /// <summary>Read on first use, after UpdateHooks.Run; a failure isn't kept, the next use tries again.</summary>
     public static bool Installed => installed.Value;
@@ -234,16 +234,16 @@ public static class Updater
             switch (d.S.AtStart(AppVersion.Current, marked))
             {
                 case StartStep.Apply: ready = d; break;
-                case StartStep.Failed: Log($"The update to {d.S.Version} didn't install: {AppVersion.Current} started instead. It waits for Restart to update or a quit."); break;
+                case StartStep.Failed: Log($"更新到 {d.S.Version} 未安装成功：实际启动的是 {AppVersion.Current}。需等待“重启以更新”或一次退出。"); break;
                 case StartStep.Older: Stage(null); break;
                 case StartStep.Installed:
-                    Log($"Updated to {AppVersion.Current}");
+                    Log($"已更新到 {AppVersion.Current}");
                     Stage(null);
                     if (marked) ClearMarker();   // the swap was done; only its hook didn't run
                     marked = false;
                     break;
             }
-        else if (marked) Log($"An update didn't install: {AppVersion.Current} started instead.");
+        else if (marked) Log($"一次更新未能安装：实际启动的是 {AppVersion.Current}。");
         Changed?.Invoke();
         // the games must be known to tell whether one runs: the scan also ends what an offline session left first
         if (!marked && Usable(ready) is { } u && Untouched() && AutoInstall.On(App.Core.Settings, u.Channel)) await App.Core.ScanAsync(CancellationToken.None);
@@ -299,7 +299,7 @@ public static class Updater
             // version while the channels differ
             if (found is not { } info || info.TargetFullRelease.Version == m.CurrentVersion)
             {
-                Log($"Checked {channel}: up to date ({m.CurrentVersion})");
+                Log($"已检查 {channel}：已是最新（{m.CurrentVersion}）");
                 UpToDate = true;
                 if (ready?.Channel == channel && !SignedFeedSource.Partial) Stage(null);   // its feed no longer offers it: a release taken back isn't installed
             }
@@ -309,14 +309,14 @@ public static class Updater
                 {
                     if (UpdateFeeds.PackageHold(Tries(), DateTimeOffset.Now, asked, AppVersion.Parse(info.TargetFullRelease.Version.ToString())?.Channel != UpdateChannels.Stable) is { } until)
                     {
-                        Log($"The download of {info.TargetFullRelease.Version} waits until {until:g}");
-                        Problem = asked ? $"The update was downloaded too many times today. SCSKiller tries again at {until:g}." : null;   // a click skips only the backoff
+                        Log($"{info.TargetFullRelease.Version} 的下载将推迟到 {until:g}");
+                        Problem = asked ? $"今天更新下载次数过多。SCSKiller 会在 {until:g} 重试。" : null;   // a click skips only the backoff
                         return;
                     }
                     Downloading = info.TargetFullRelease.Version.ToString();
                     Changed?.Invoke();
                 }
-                Log($"Checked {channel}: {info.TargetFullRelease.Version} is available");
+                Log($"已检查 {channel}：{info.TargetFullRelease.Version} 可用");
                 try { await m.DownloadUpdatesAsync(info); }   // a package already whole on disk is not fetched again
                 catch
                 {
@@ -325,32 +325,32 @@ public static class Updater
                 }
                 Tried(t => t.Succeeded());
                 var t = info.TargetFullRelease;
-                Log($"Downloaded {t.Version} ({t.FileName})");
+                Log($"已下载 {t.Version}（{t.FileName}）");
                 if (channel == Chosen()) Stage(new(m, t, new(channel, t.Version.ToString(), t.FileName, t.Size, t.SHA256, SignedFeedSource.Fetched), backToStable));   // the choice may have changed meanwhile
             }
         }
         catch (FeedRejectedException e)
         {
-            Log($"The update feed failed its signature check: {e.Message}");
-            Problem = "The update feed failed its signature check: " + e.Message;
+            Log($"更新源未通过签名校验：{e.Message}");
+            Problem = "更新源未通过签名校验：" + e.Message;
         }
         catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound) { Problem = null; failures = 0; }   // no feed published on this channel yet
         catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
         {
-            Log("The update server asked SCSKiller to wait (429)");
-            Problem = asked ? "The update server asked SCSKiller to wait. It checks again by itself later." : null;
+            Log("更新服务器要求 SCSKiller 等待（429）");
+            Problem = asked ? "更新服务器要求 SCSKiller 等待，稍后会自行重试。" : null;
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException)
         {
-            Log($"Couldn't check for updates: {e.GetType().Name}: {e.Message}");
+            Log($"无法检查更新：{e.GetType().Name}：{e.Message}");
             // offline or a hiccup: the next check retries; say so only once it has kept failing for a day
-            Problem = ++failures >= 24 ? "Couldn't reach the update server for a while. SCSKiller keeps trying."
-                : asked ? "Couldn't reach the update server. SCSKiller tries again within the hour." : null;
+            Problem = ++failures >= 24 ? "有一段时间无法连接更新服务器，SCSKiller 会持续重试。"
+                : asked ? "无法连接更新服务器，SCSKiller 将在一小时内重试。" : null;
         }
         catch (Exception e)
         {
-            Log($"Couldn't check for updates: {e}");
-            Problem = "Couldn't check for updates right now.";
+            Log($"无法检查更新：{e}");
+            Problem = "目前无法检查更新。";
         }
         finally
         {
@@ -375,7 +375,7 @@ public static class Updater
         if (Usable(ready) is not { } d) return;
         if (HeldBack(d.Channel) is { } why)
         {
-            Log($"The update to {d.S.Version} waits for the next start: {why}");
+            Log($"更新到 {d.S.Version} 将等到下次启动：{why}");
             return;
         }
         if (!BeginUpdate()) return;
@@ -410,8 +410,8 @@ public static class Updater
             for (var i = 0; i < 20 && Busy.IsHeld(); i++) await Task.Delay(100);   // our worker lets go just after the item ends
             if (Busy.IsHeld())
             {
-                Problem = "The background rebuild after a driver update is compiling. The update installs when SCSKiller quits after it has finished.";
-                Log($"Restart to update: {Problem}");
+                Problem = "驱动更新后的后台重建正在编译。该编译结束后 SCSKiller 退出时会安装更新。";
+                Log($"重启以更新：{Problem}");
                 return false;
             }
             applied = await ApplyAsync(Timeout.InfiniteTimeSpan, (m, r) =>
@@ -419,7 +419,7 @@ public static class Updater
                 if (queued.Count > 0) File.WriteAllLines(ResumeFile, queued);
                 m.ApplyUpdatesAndRestart(r);   // exits this process
             });
-            if (!applied) Log($"Restart to update didn't install it: {Problem}");
+            if (!applied) Log($"“重启以更新”未能安装：{Problem}");
             return applied;
         }
         finally
@@ -466,7 +466,7 @@ public static class Updater
                 Fetched[c] = f;
                 var more = VelopackAssetFeed.FromJson(Encoding.UTF8.GetString(f.Feed));
                 // Velopack falls back to SHA-1 for an asset without SHA-256: a signed feed must pin every package by SHA-256
-                if (more.Assets.Any(a => string.IsNullOrEmpty(a.SHA256))) throw new FeedRejectedException("a package without a SHA-256");
+                if (more.Assets.Any(a => string.IsNullOrEmpty(a.SHA256))) throw new FeedRejectedException("缺少 SHA-256 的安装包");
                 var have = parsed.Assets.Select(a => a.FileName).ToHashSet();
                 parsed.Assets = [.. parsed.Assets, .. more.Assets.Where(a => c == channel || a.Type == VelopackAssetType.Full && !have.Contains(a.FileName))];
             }
@@ -475,7 +475,7 @@ public static class Updater
 
         public async Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset entry, string localFile, Action<int> progress, CancellationToken ct = default)
         {
-            var version = AppVersion.Parse(entry.Version.ToString()) ?? throw new FeedRejectedException($"version '{entry.Version}'");
+            var version = AppVersion.Parse(entry.Version.ToString()) ?? throw new FeedRejectedException($"版本“{entry.Version}”");
             using var headers = CancellationTokenSource.CreateLinkedTokenSource(ct);
             headers.CancelAfter(TimeSpan.FromMinutes(1));
             using var r = await Feeds.PackageAsync(version, entry.FileName, headers.Token);

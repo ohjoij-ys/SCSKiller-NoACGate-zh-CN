@@ -78,7 +78,7 @@ public sealed partial class LibraryPage : Page
     void OnFoldersOpening(object _, object __)
     {
         FoldersMenu.Items.Clear();
-        var add = new MenuFlyoutItem { Text = "Add a folder of games…", Icon = new FontIcon { Glyph = "\uE710" } };
+        var add = new MenuFlyoutItem { Text = "添加游戏目录…", Icon = new FontIcon { Glyph = "\uE710" } };
         add.Click += OnAddFolder;
         FoldersMenu.Items.Add(add);
         var folders = Fmt.Added?.Folders ?? [];
@@ -86,11 +86,11 @@ public sealed partial class LibraryPage : Page
         foreach (var folder in folders)
         {
             var item = new MenuFlyoutItem { Text = folder, Icon = new FontIcon { Glyph = "\uE711" } };
-            ToolTipService.SetToolTip(item, "Stop looking for games here");
+            ToolTipService.SetToolTip(item, "不再在此处查找游戏");
             item.Click += async (_, _) =>
             {
-                if (!await App.ConfirmAsync(this, "Stop looking for games here?",
-                        $"{folder}\n\nThe games SCSKiller found only in this folder leave the library. Nothing in the folder changes.", "Stop looking")) return;
+                if (!await App.ConfirmAsync(this, "不再在此处查找游戏？",
+                        $"{folder}\n\nThe games SCSKiller found only in this folder leave the library. Nothing in the folder changes.", "停止查找")) return;
                 if (Fmt.Added is { } added) await Task.Run(() => added.RemoveFolder(folder));
                 Vm.Rescan(force: false);
             };
@@ -104,15 +104,15 @@ public sealed partial class LibraryPage : Page
         string? path;
         try
         {
-            var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(App.Main.AppWindow.Id) { CommitButtonText = "Look for games here" };
+            var picker = new Microsoft.Windows.Storage.Pickers.FolderPicker(App.Main.AppWindow.Id) { CommitButtonText = "在此处查找游戏" };
             path = (await picker.PickSingleFolderAsync())?.Path;
         }
-        catch (Exception ex) { await Message("Couldn't open the folder picker", ex.Message); return; }
+        catch (Exception ex) { await Message("无法打开目录选择器", ex.Message); return; }
         if (path == null || Fmt.Added is not { } added) return;
         try { await Task.Run(() => added.AddFolder(path)); }
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
-            await Message("Couldn't add this folder", ex.Message);
+            await Message("无法添加此目录", ex.Message);
             return;
         }
         Vm.Rescan(force: false);
@@ -126,47 +126,47 @@ public sealed partial class LibraryPage : Page
         {
             var picker = new Microsoft.Windows.Storage.Pickers.FileOpenPicker(App.Main.AppWindow.Id)
             {
-                SuggestedStartLocation = Microsoft.Windows.Storage.Pickers.PickerLocationId.ComputerFolder, CommitButtonText = "Add game",
+                SuggestedStartLocation = Microsoft.Windows.Storage.Pickers.PickerLocationId.ComputerFolder, CommitButtonText = "添加游戏",
             };
             picker.FileTypeFilter.Add(".exe");
             path = (await picker.PickSingleFileAsync())?.Path;
         }
-        catch (Exception ex) { await Message("Couldn't open the file picker", ex.Message); return; }
+        catch (Exception ex) { await Message("无法打开文件选择器", ex.Message); return; }
         if (path == null) return;
         ManualAdd added;
         try { added = await Task.Run(() => App.Core.PreviewManualGame(path)); }   // reads the install's files
         catch (Exception ex)   // a rejection's message, or a data folder SCSKiller couldn't read
         {
-            await Message("Couldn't add this game", ex.Message);
+            await Message("无法添加此游戏", ex.Message);
             return;
         }
         if (!added.Existed)
         {
-            if (await GameFolderDialog.ShowAsync(XamlRoot, added.Game, $"Add {added.Game.Name}", "Add game") is not { } folder) return;
+            if (await GameFolderDialog.ShowAsync(XamlRoot, added.Game, $"添加 {added.Game.Name}", "添加游戏") is not { } folder) return;
             try { await Task.Run(() => App.Core.AddManualGame(path, folder)); }
             catch (Exception ex)
             {
-                await Message("Couldn't add this game", ex.Message);
+                await Message("无法添加此游戏", ex.Message);
                 return;
             }
-            Vm.Rescan(force: false);   // lists it under "Added by you" once its engine and anti-cheat are checked
+            Vm.Rescan(force: false);   // lists it under "手动添加" once its engine and anti-cheat are checked
             return;
         }
         if (App.Core.HiddenGames.Any(g => g.Id == added.Game.Id))
         {
-            await Message("Hidden from your library", $"You removed {added.Game.Name}. Show hidden brings it back.");
+            await Message("已从你的游戏库隐藏", $"You removed {added.Game.Name}. Show hidden brings it back.");
             return;
         }
         var listed = App.Core.Games.Any(s => s.Game.Id == added.Game.Id);
-        var where = added.Game.Store == Store.Manual ? "you added it already" : $"SCSKiller found it in {Fmt.StoreName(added.Game)}";
-        if (listed && await App.ConfirmAsync(this, "Already in your library", $"{added.Game.Name} is in the list: {where}.", "Open", ContentDialogButton.Primary))
+        var where = added.Game.Store == Store.Manual ? "你已添加过它" : $"SCSKiller 已在 {Fmt.StoreName(added.Game)} 找到它";
+        if (listed && await App.ConfirmAsync(this, "游戏已在库中", $"{added.Game.Name} is in the list: {where}.", "Open", ContentDialogButton.Primary))
             App.Main.Navigate(typeof(DetailPage), added.Game.Id);
-        else if (!listed) await Message("Already in your library", $"{added.Game.Name}: {where}. Refresh the library to see it.");
+        else if (!listed) await Message("游戏已在库中", $"{added.Game.Name}: {where}. Refresh the library to see it.");
     }
 
     Task Message(string title, string text) => App.ShowAsync(new ContentDialog
     {
-        XamlRoot = XamlRoot, Title = title, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, CloseButtonText = "OK",
+        XamlRoot = XamlRoot, Title = title, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, CloseButtonText = "确定",
     });
 
     void OnAddAll(object _, RoutedEventArgs __) => Vm.AddAllReady();
@@ -182,21 +182,21 @@ public sealed partial class LibraryPage : Page
     async void OnWhy(object sender, RoutedEventArgs _)
     {
         var row = RowOf(sender);
-        var title = $"Why can't {row.Name} be compiled?";
+        var title = $"为什么无法编译 {row.Name}？";
         if (!ScsKiller.NeedsAesKey(row.State))
-            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = title, Content = new TextBlock { Text = row.Reason, TextWrapping = TextWrapping.Wrap }, CloseButtonText = "Close" });
+            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = title, Content = new TextBlock { Text = row.Reason, TextWrapping = TextWrapping.Wrap }, CloseButtonText = "关闭" });
         else if (await AesKeyDialog.ShowAsync(XamlRoot, row.Id, title, row.Reason)) Vm.Rescan();
     }
 
     async void OnRecord(object sender, RoutedEventArgs _)
     {
         var row = RowOf(sender);
-        if (!await App.ConfirmAsync(this, $"Record {row.Name}?",
-                $"SCSKiller adds a small {Fmt.RecorderDll(row.State)} next to the game that writes down every pipeline it creates. " +
-                "Play for about 5 minutes, close the game, then add it to the compile queue. You can remove it any time from the game's page.",
-                "Add recorder", ContentDialogButton.Primary)) return;
+        if (!await App.ConfirmAsync(this, $"录制 {row.Name}？",
+                $"SCSKiller 会在游戏旁放入一个小的 {Fmt.RecorderDll(row.State)}，记录它创建的每条管线。" +
+                "游玩约 5 分钟后关闭游戏，再把它加入编译队列。可随时在游戏页面移除。",
+                "添加录制器", ContentDialogButton.Primary)) return;
         try { await Task.Run(() => App.Core.InstallRecorder(row.Id)); }   // file IO and the game's re-evaluation
-        catch (Exception ex) { await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Couldn't add the recorder", Content = ex.Message, CloseButtonText = "OK" }); }
+        catch (Exception ex) { await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "无法安装录制器", Content = ex.Message, CloseButtonText = "确定" }); }
         Vm.Refresh();
     }
 }

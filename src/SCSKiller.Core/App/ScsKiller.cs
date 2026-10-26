@@ -39,10 +39,10 @@ public sealed partial class ScsKiller : IScsKiller
     /// <see cref="LargeCompile"/>; else null. It names that game's own cache estimate, as the Library shows it, in whole GB.
     /// On AMD the driver's cache can't hold it all.</summary>
     public static string? LargeCompileWarning(IEnumerable<(long Growth, long Estimate)> queue, GpuVendor vendor) =>
-        LargeCompileGb(queue) is { } gb ? $"This compile adds about {gb:0} GB. {LargeCacheCost}"
-            + (vendor == GpuVendor.Amd ? $" It's more than the AMD driver's {App.Format.Bytes(AmdAppCache.DxcCacheCap)} cache can hold." : "") : null;
+        LargeCompileGb(queue) is { } gb ? $"此次编译预计增加约 {gb:0} GB 缓存。{LargeCacheCost}"
+            + (vendor == GpuVendor.Amd ? $"已超过 AMD 驱动 {App.Format.Bytes(AmdAppCache.DxcCacheCap)} 的固定缓存上限。" : "") : null;
 
-    const string LargeCacheCost = "Very large caches can make the game start slower and use more memory.";
+    const string LargeCacheCost = "超大缓存可能使游戏启动变慢并增加内存占用。";
 
     static double? LargeCompileGb(IEnumerable<(long Growth, long Estimate)> queue) =>
         queue.DefaultIfEmpty().MaxBy(q => q.Growth) is (> LargeCompile, var estimate) ? Math.Round(estimate / (double)(1L << 30), MidpointRounding.AwayFromZero) : null;
@@ -54,14 +54,14 @@ public sealed partial class ScsKiller : IScsKiller
     {
         if (limit is not { } max) return LargeCompileWarning(queue, vendor);
         if (vendor == GpuVendor.Nvidia && queue.Select(q => q.Estimate).DefaultIfEmpty().Max() is var own && own > max)   // one game alone can't fit
-            return $"This compile adds about {Math.Round(own / (double)(1L << 30), MidpointRounding.AwayFromZero):0} GB, more than your {App.Format.Bytes(max)} NVIDIA shader cache limit. "
-                + $"The driver would throw most of it away. Raise the limit in Settings before you compile. {LargeCacheCost}";
+            return $"本次编译约增加 {Math.Round(own / (double)(1L << 30), MidpointRounding.AwayFromZero):0} GB，超过你设定的 NVIDIA 着色器缓存上限 {App.Format.Bytes(max)}。"
+                + $"驱动会丢弃其中大部分。建议在编译前于设置中提高上限。{LargeCacheCost}";
         if (LargeCompileGb(queue) is { } gb && usage + planned > max)
-            return $"This compile adds about {gb:0} GB and takes the cache past your {App.Format.Bytes(max)} limit, so older games may be evicted. {LargeCacheCost}";
+            return $"此次编译预计增加约 {gb:0} GB，使缓存超过 {App.Format.Bytes(max)} 上限；较早游戏的缓存可能被清理。{LargeCacheCost}";
         return LargeCompileWarning(queue, vendor)
-            ?? (planned > 0 && usage + planned > 0.9 * max ? $"After this queue the cache is close to its {App.Format.Bytes(max)} limit, older games may be evicted." : null);
+            ?? (planned > 0 && usage + planned > 0.9 * max ? $"完成此队列后，缓存将接近 {App.Format.Bytes(max)} 上限；较早游戏的缓存可能被清理。" : null);
     }
-    /// <summary>The queue warning's "Raise the limit": a limit the app sets that isn't Unlimited. Unread (null) may still be raised.</summary>
+    /// <summary>The queue warning's "提高上限": a limit the app sets that isn't Unlimited. Unread (null) may still be raised.</summary>
     public static bool CanRaiseCacheLimit(VendorCaps caps, CacheLimit? limit) => caps.CacheSizeConfigurable && limit is not { Bytes: null };
     static readonly byte[] ProxyMarker = "SCSKiller_StartWarm"u8.ToArray();   // an export only our proxy d3d12.dll has
     const string RecorderIni = "[scskiller]\r\n; written by SCSKiller: record the pipelines this game creates. Removed by 'uninstall recorder'.\r\nmode=record\r\n";
@@ -95,7 +95,7 @@ public sealed partial class ScsKiller : IScsKiller
     long _evaluations;
     Settings? _settings;
     Task? _worker;
-    bool _running;                                   // StartQueue was called and normal (not "when idle") items are left
+    bool _running;                                   // StartQueue was called and normal (not "空闲时") items are left
     string? _current;
     QueueStage _stage;
     IWarmRun? _run;
@@ -226,22 +226,22 @@ public sealed partial class ScsKiller : IScsKiller
                     _goneSince = null;
                     // the backend is chosen at start: a pick (or one back from being gone) that lands on another adapter needs a restart
                     GpuRestartNote = (Settings.Gpu != null || _startGpu != null) && GpuBackends.Pick(all, Settings.Gpu) is { } picked && picked.Gpu.AdapterLuid != now.Gpu.AdapterLuid
-                        ? $"Restart SCSKiller to use {picked.Gpu.Name}" : null;
+                        ? $"重启 SCSKiller 以使用 {picked.Gpu.Name}" : null;
                     if (now != _known || !_resolved) (_resolved, _known) = (Vendor is not IRefreshableGpu gpu || gpu.Refresh(now.Gpu), now);
                     if (now.Gpu.DriverVersion.Length > 0)   // none: the last one stays
                         _id = $"{(int)now.Gpu.Vendor:x4}:{now.DeviceId:x4}:{now.SubSysId:x8}:{now.Gpu.DriverVersion}";
                     if (_resolved && _id != null) _completeId = _id;
                 }
                 else if (Clock() - (_goneSince ??= Clock()) >= GpuGoneAfter && GpuBackends.Pick(all, Settings.Gpu) is { } other)
-                    GpuRestartNote = $"Restart SCSKiller to use {other.Gpu.Name}";
+                    GpuRestartNote = $"重启 SCSKiller 以使用 {other.Gpu.Name}";
                 if (GpuRestartNote == note && Vendor.Gpu == before && DriverId == id) return false;
             }
             catch (Exception e)
             {
-                Log?.Report($"re-detecting the GPU failed: {e.Message}");
+                Log?.Report($"重新检测显卡失败：{e.Message}");
                 return false;
             }
-        Log?.Report(GpuRestartNote ?? $"GPU: {before.Name}, driver {before.DriverVersion} -> {Vendor.Gpu.Name}, driver {Vendor.Gpu.DriverVersion}");
+        Log?.Report(GpuRestartNote ?? $"显卡：{before.Name}，驱动 {before.DriverVersion} → {Vendor.Gpu.Name}，驱动 {Vendor.Gpu.DriverVersion}");
         DropStaleKept();
         GpuChanged?.Invoke();
         return true;
@@ -402,7 +402,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     /// <summary>How long the user has been away from keyboard and mouse (GetLastInputInfo). Replaceable for tests.</summary>
     public Func<TimeSpan> IdleTime { get; set; } = UserIdleTime;
-    /// <summary>"When idle" items start, and resume, once the user has been away this long; input pauses them within a second.</summary>
+    /// <summary>"空闲时编译" items start, and resume, once the user has been away this long; input pauses them within a second.</summary>
     public TimeSpan IdleAfter { get; set; } = TimeSpan.FromMinutes(2);
     /// <summary>A warm whose done count hasn't moved for this long (not paused) shows "no progress for N min" instead of
     /// an estimate. Replaceable for tests.</summary>
@@ -449,7 +449,7 @@ public sealed partial class ScsKiller : IScsKiller
                             if (keptOff) DropStaleKept();
                             foreach (var g in Games) Refresh(g.Game);
                         }
-                        catch (Exception e) { Log?.Report($"re-evaluating games for the new settings failed: {e.Message}"); }
+                        catch (Exception e) { Log?.Report($"按新设置重新评估游戏失败：{e.Message}"); }
                 });
             if (channelChanged) lock (_channelLock) ApplyChannels(false);
             if (gpuChanged) Task.Run(RedetectGpu);   // the restart note
@@ -460,7 +460,7 @@ public sealed partial class ScsKiller : IScsKiller
                 Task.Run(() =>
                 {
                     try { ReconcileRecorders(); }
-                    catch (Exception e) { Log?.Report($"reconciling recorders failed: {e.Message}"); }
+                    catch (Exception e) { Log?.Report($"同步录制器失败：{e.Message}"); }
                 });
         }
     }
@@ -517,7 +517,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var app = UserFetch is { } f ? Task.Run(f) : Task.CompletedTask;
         try { await Task.WhenAll(lists, community, app); }
-        catch (Exception e) { Log?.Report($"refreshing the server's data failed: {e.Message}"); }
+        catch (Exception e) { Log?.Report($"刷新服务器数据失败：{e.Message}"); }
         return lists.IsCompletedSuccessfully && !lists.Result ? ServerCheck.Unreachable : ServerCheck.Done;
     }
 
@@ -536,7 +536,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     int _updateScans;   // scans that found the list of another build: the first after an app update
 
-    public const string AfterUpdateText = "Checking your games after the update. This can take a few minutes.";
+    public const string AfterUpdateText = "更新后正在检查你的游戏，可能需要几分钟。";
     /// <summary>The Library's line while the first scan after an app update or an older planner's plan checks run; null = neither.</summary>
     public string? AfterUpdateLine
     {
@@ -605,7 +605,7 @@ public sealed partial class ScsKiller : IScsKiller
             foreach (var g in each)
             {
                 ct.ThrowIfCancellationRequested();
-                Progress($"Checking each game… {states.Count + 1} of {each.Count}");
+                Progress($"正在逐个检查游戏… {states.Count + 1}/{each.Count}");
                 var ticket = Ticket();
                 tickets.Add(ticket);
                 var fresh = false;
@@ -625,7 +625,7 @@ public sealed partial class ScsKiller : IScsKiller
                 if (shown != null) GameChanged?.Invoke(shown);
             }
         lock (_lock) Publish(started, discovering, Newest(states, tickets, driverStale));
-        if (states.Any(s => s.Vac) && VacReadError() is { } unread) Log?.Report($"Steam's {unread}. Every Steam game counts as VAC until it reads.");
+        if (states.Any(s => s.Vac) && VacReadError() is { } unread) Log?.Report($"Steam 的{unread}。读取完成前，所有 Steam 游戏都按带 VAC 处理。");
         var running = Running();   // notes how running games were launched (the real check only opens processes named like a game)
         var learned = LearnKeysOfRunning(running);
         for (int i = 0; i < states.Count; i++)
@@ -721,7 +721,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         lock (_keepLock)
             try { Store.SaveList(new KeptList(CoreBuild, DriverId, Games.ToList())); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"couldn't save the list of games: {e.Message}"); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"无法保存游戏列表：{e.Message}"); }
     }
     // the snapshot and its write together: an older list never replaces a newer one
     readonly object _keepLock = new();
@@ -757,7 +757,7 @@ public sealed partial class ScsKiller : IScsKiller
         foreach (var source in _sources)
             try
             {
-                Progress($"Scanning {SourceName(source)}… {found.Count} games found");
+                Progress($"正在扫描 {SourceName(source)}… 找到 {found.Count} 个游戏");
                 var named = list(source);
                 foreach (var g in named)   // the folders of both the exe the user picked and the one it runs; a folder's game is only left out
                     if (g.Store == Core.Store.Manual && !(source is ManualSource m && m.InFolder(g.Id)) && found.FirstOrDefault(f => GameFiles.Inside(f.InstallDir, g.ExePath)) is { } owner)
@@ -778,7 +778,7 @@ public sealed partial class ScsKiller : IScsKiller
         if (found.Count != known.Count || found.Any(g => known.GetValueOrDefault(g.Id) != g)
             || picked.Count != picks.Count || picked.Any(p => picks.GetValueOrDefault(p.Key) != p.Value))
             try { Store.SaveDiscovered(CoreBuild, found, picked); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"couldn't save the games found: {e.Message}"); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"无法保存找到的游戏：{e.Message}"); }
         var unresolved = new Dictionary<string, Exception>();
         found = found.Select(g =>
         {
@@ -821,7 +821,7 @@ public sealed partial class ScsKiller : IScsKiller
             Middleware.SaveImages(ImagesFile);
             ReShade.SaveProbes(ProbesFile);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"couldn't save what was read of the games' DLLs: {e.Message}"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"无法保存读取到的游戏 DLL 信息：{e.Message}"); }
     }
 
     string StutterFile => Path.Combine(Store.DataDir, "known-stutter.json");
@@ -1078,17 +1078,17 @@ public sealed partial class ScsKiller : IScsKiller
         var codec = Codecs.Reason(e);
         Log?.Report($"{g.Name}: couldn't be read: {(codec == null ? e.Message : e.ToString())}");
         _unread[g.Id] = true;
-        var reason = codec ?? $"couldn't read its files: {e.Message}";
+        var reason = codec ?? $"无法读取其文件：{e.Message}";
         GameState? last;
         lock (_lock) (last, driverStale) = (_games.FirstOrDefault(s => s.Game.Id == g.Id), _driverStale.GetValueOrDefault(g.Id));
-        return last != null ? last with { Game = g, Status = GameStatus.Unsupported, StatusReason = reason, NotPlanned = false }   // an error may pass: "Not supported yet"
+        return last != null ? last with { Game = g, Status = GameStatus.Unsupported, StatusReason = reason, NotPlanned = false }   // an error may pass: "尚不支持"
             : new GameState(g, null, AntiCheat.None, GameStatus.Unsupported, reason, null, null, null, null, null, null, null, false, null) { RecorderSkip = SkipUnsupported };
     }
 
     /// <summary>A game listed before a scan reached it.</summary>
-    public const string CheckingReason = "checking its files";
+    public const string CheckingReason = "正在检查其文件";
     /// <summary>HDD mode: a game never checked, read only when its page opens or it compiles.</summary>
-    public const string NotCheckedReason = "not checked yet: open it to check";
+    public const string NotCheckedReason = "尚未检查：打开它即可检查";
 
     /// <summary>A state no evaluation read (<see cref="Unchecked"/>): Reconcile and the code near a running game never act on it.</summary>
     public static bool IsUnchecked(GameState s) => s.StatusReason is CheckingReason or NotCheckedReason;
@@ -1218,14 +1218,14 @@ public sealed partial class ScsKiller : IScsKiller
         var vac = VacCheck(g);
         if (vac && (rec.RecorderFiles.Count > 0 || rec.RecorderChained != null || ProxyOnDisk(g)))
         {
-            TakeOutNow(g, "VAC found");   // the command line doesn't reconcile
+            TakeOutNow(g, "检测到 VAC");   // the command line doesn't reconcile
             rec = Store.LoadGame(g.Id);   // what the removal left
         }
         // anti-cheat seen: off the AGS app-name path for good (a risk session is let through separately, AgsEligible)
         if ((antiCheat != AntiCheat.None && !_unknown.ContainsKey(g.Id) || vac) && !rec.AgsIneligible && Vendor.Vendor == GpuVendor.Amd)   // a check that didn't finish isn't a sighting
         {
             rec.AgsIneligible = true;
-            Log?.Report($"{g.Name}: {(antiCheat != AntiCheat.None ? "anti-cheat" : "VAC")} found; the AGS app-name hook is off for it");
+            Log?.Report($"{g.Name}: {(antiCheat != AntiCheat.None ? "反作弊组件" : "VAC")} found; the AGS app-name hook is off for it");
             try { Store.SaveGame(g.Id, rec); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"{g.Name}: couldn't save its record: {e.Message}"); }
         }
@@ -1266,9 +1266,9 @@ public sealed partial class ScsKiller : IScsKiller
         // a risk session can record it: no claim that its anti-cheat blocks the recorder
         var riskOffered = !allowAntiCheat && (antiCheat != AntiCheat.None || vac) && OfflineEntry(g, antiCheat, engine) == null && RiskOffered(g, engine, anyAntiCheat: true);
         var noRecording = riskOffered ? RiskNoRecording
-            : antiCheat != AntiCheat.None && !allowAntiCheat ? $"which {(antiCheat == AntiCheat.Other ? "its anti-cheat" : antiCheat)} blocks"
-              + (OfflineEntry(g, antiCheat, engine) != null ? " unless you record an offline session (game page)" : "")
-            : vac ? "which VAC blocks" : unconfirmed ? ManualNoRecording : slFirst ? StreamlineNoRecording : null;
+            : antiCheat != AntiCheat.None && !allowAntiCheat ? $"{(antiCheat == AntiCheat.Other ? "其反作弊" : antiCheat)} 会阻止录制"
+              + (OfflineEntry(g, antiCheat, engine) != null ? "，除非你在游戏页面录制一次离线会话" : "")
+            : vac ? "VAC 阻止了录制" : unconfirmed ? ManualNoRecording : slFirst ? StreamlineNoRecording : null;
         // a session that records DirectX 11 (RiskDll) can record them, else nothing can
         var sessionRecords11 = (antiCheat != AntiCheat.None || vac) && RiskDll(engine, Vendor.Caps) == Dll11
             && (OfflineEntry(g, antiCheat, engine) != null || RiskOffered(g, engine, anyAntiCheat: true));
@@ -1300,7 +1300,7 @@ public sealed partial class ScsKiller : IScsKiller
             // no plan source at all: the game files, this PC's recording and the community's were each checked
             Readiness.NeedsRecording when OfflineEntry(g, antiCheat, engine) != null && !File.Exists(RecordingPath(g.Id)) && CommunityInUse(g.Id) == null
                 => (GameStatus.NeedsRecording, OfflineSessionNote),   // a recording without draws keeps the arm below
-            Readiness.NeedsRecording when noRecording != null => (riskOffered ? GameStatus.NeedsRecording : GameStatus.Unsupported, $"needs a recording, {noRecording}" + DbNote(inDb, entitled)),
+            Readiness.NeedsRecording when noRecording != null => (riskOffered ? GameStatus.NeedsRecording : GameStatus.Unsupported, $"需要一次录制，{noRecording}" + DbNote(inDb, entitled)),
             Readiness.NeedsRecording when by != null && Collections.Member(by)!.Value.Game.Name is var byName => (GameStatus.NeedsRecording,
                 check.Reason.Replace(Planner.Record, shared ? SharedOn(byName) : RecordOnFirst(byName)) + DbNote(inDb, entitled)),
             Readiness.NeedsRecording => (GameStatus.NeedsRecording, check.Reason + DbNote(inDb, entitled)),
@@ -1314,9 +1314,9 @@ public sealed partial class ScsKiller : IScsKiller
             _ when StaleReason(g, rec, engine, pending, gpuNow, status: true) is { } why => (GameStatus.Stale, why),
             _ when D3DSCachePending(g.Id, rec) => (GameStatus.Warmed, D3DSCachePendingReason),
             _ when trimmed != null && KeptReason(rec) is { } kept => (GameStatus.Warmed, kept),
-            _ => (GameStatus.Warmed, RtBlocked(rt, noRecording, (partlyCompiled ? $"partly compiled for driver {rec.WarmedDriverVersion}: {RefusedNote(rejected ?? 0, psos ?? 0)}"
+            _ => (GameStatus.Warmed, RtBlocked(rt, noRecording, (partlyCompiled ? $"已针对驱动 {rec.WarmedDriverVersion} 部分编译：{RefusedNote(rejected ?? 0, psos ?? 0)}"
                     : cap is { } t && PartlyWarmedNote(rec, t, careful) is { } partly
-                    ? $"partly warmed for driver {rec.WarmedDriverVersion}: {partly}" : $"warmed for driver {rec.WarmedDriverVersion}")
+                    ? $"已针对驱动 {rec.WarmedDriverVersion} 部分预编译：{partly}" : $"warmed for driver {rec.WarmedDriverVersion}")
                 + (PartialNote(rec.Plan?.Stats) is { } partial ? "; " + partial : "")) + unseen),
         };
         // the running launch isn't the last play yet: its counts so far would stay on the page until its exit is read
@@ -1450,7 +1450,7 @@ public sealed partial class ScsKiller : IScsKiller
     /// <summary>"256 MB", "1 GB"; "Unlimited" for 0.</summary>
     public static string LimitText(int mb) => mb <= 0 ? "Unlimited" : mb % 1024 == 0 ? $"{mb / 1024} GB" : $"{mb} MB";
 
-    public static string PausedNote(Settings s) => $"Recording paused: limit reached ({LimitText(s.RecordingLimitMB)})";
+    public static string PausedNote(Settings s) => $"录制已暂停：达到容量上限（{LimitText(s.RecordingLimitMB)}）";
 
     /// <summary>The last build can't compile the game's ray tracing and no recording has any: more than 10% of its DXIL
     /// libraries have no synthesized collection and no recorded state object (<see cref="PlanStats.RtUncovered"/>): AMD (its
@@ -1469,7 +1469,7 @@ public sealed partial class ScsKiller : IScsKiller
     /// <summary>The plan saw ray tracing: DXIL libraries in the index, recorded state objects or inline RayQuery shaders.</summary>
     public static bool HasRayTracing(PlanStats? p) => p is { RtLibraries: > 0 } or { RtStateObjects: > 0 } or { RtInline: > 0 };
 
-    public const string RtInlineNote = "ray tracing that uses separate pipelines (such as path tracing) is compiled only from a recording";
+    public const string RtInlineNote = "使用独立管线的光追（例如路径追踪）只能通过录制来编译";
 
     /// <summary>The same for a game's state: not while a newer recording waits for its plan (<see cref="GameState.RtToPlan"/>),
     /// nor once it was recorded long enough without ray tracing (<see cref="GameState.RtUnseen"/>).</summary>
@@ -1487,14 +1487,14 @@ public sealed partial class ScsKiller : IScsKiller
     /// <summary>A recorded launch was <see cref="EnoughRecording"/> or longer since the recording was last cleared: asking for "5 minutes" again says nothing.</summary>
     public static bool RecordedEnough(GameState s) => s.RecordedEnough;
 
-    public const string NothingRecordedTitle = "Played, nothing recorded";
-    public const string NeverSawNote = "The recorder never loaded in the last launch. Please report it with the game's name.";
-    public const string NeverSawDx11Note = "The recorder didn't load in the last launch. The game may have run on DirectX 11.";
-    public const string NeverSawDx12Note = "The recorder didn't load in the last launch. The game may have run on DirectX 12.";
-    public const string GameChangedNote = "The game changed since the recorder was set up. It is set up again: play again.";
-    public const string CollectionSwitchNote = "The last launch wasn't recorded: the recorder was set up for the game played before. It is set up for this game now: play again.";
-    const string CollectionSwitchRefusal = "stamped for another game of its collection";   // the app's rewrite of the proxy's "exe not as checked"
-    const string RanOtherExe = "The last launch ran ";
+    public const string NothingRecordedTitle = "已游玩，但没有录制到内容";
+    public const string NeverSawNote = "上次启动时录制器从未加载。请附上游戏名反馈给我们。";
+    public const string NeverSawDx11Note = "上次启动时录制器未加载。游戏可能运行在 DirectX 11 上。";
+    public const string NeverSawDx12Note = "上次启动时录制器未加载。游戏可能运行在 DirectX 12 上。";
+    public const string GameChangedNote = "录制器设置后游戏发生了变更。已重新设置，请再玩一次。";
+    public const string CollectionSwitchNote = "上次启动未录制：录制器是为之前玩的游戏设置的。现已为此游戏设置，请再玩一次。";
+    const string CollectionSwitchRefusal = "被标记为同系列的另一款游戏";   // the app's rewrite of the proxy's "exe not as checked"
+    const string RanOtherExe = "上次启动运行的是 ";
     public static string RanOtherExeNote(string exe) => $"{RanOtherExe}{exe}, not the exe the recorder was set up for. It is set up for it now: play again.";
     public static string RanOtherExeKeptNote(string exe) => $"{RanOtherExe}{exe}, not the exe the recorder was set up for.";
 
@@ -1527,8 +1527,8 @@ public sealed partial class ScsKiller : IScsKiller
             null => null,
             CollectionSwitchRefusal => CollectionSwitchNote,
             _ when Unstamped(refused) || refused == "scskiller.ini changed while deciding" => GameChangedNote,   // stamped again by the next clean check
-            "loaded from another folder than the exe" => "The last launch wasn't recorded: a mod loaded a copy of the recorder from another folder, where it can't record.",
-            var why => $"The last launch wasn't recorded: {why}.",
+            "从 exe 以外的目录加载" => "上次启动未被记录：某个 mod 从另一个文件夹加载了录制器副本，那里无法录制。",
+            var why => $"上次启动未录制：{why}。",
         };
     }
 
@@ -1555,24 +1555,24 @@ public sealed partial class ScsKiller : IScsKiller
     };
 
     /// <summary>The game page's line and the compile's summary when <see cref="RayTracing"/> is off.</summary>
-    public const string RtSkippedNote = "Ray tracing skipped (your setting)";
+    public const string RtSkippedNote = "光追已跳过（按你的设置）";
     /// <summary>The stale reason when it is on again after a compile without it.</summary>
-    public const string RtToCompileReason = "ray tracing shaders are still to compile";
+    public const string RtToCompileReason = "光追着色器仍有待编译";
     /// <summary>The end of a Ready or Warmed reason when <see cref="GameState.RtUnseen"/> keeps a plan's uncovered ray tracing from being asked for.</summary>
-    public const string RtUnseenNote = "no ray tracing seen while recording: turn it on in the game and play to cover it";
+    public const string RtUnseenNote = "录制期间未出现光追：在游戏中开启并游玩以覆盖这部分";
 
     /// <summary>The status reason of a game whose ray tracing needs a recording (<see cref="NeedsRtRecording"/>).</summary>
-    public static string RtNote(bool? inCommunityDb, bool entitled) => RtNeedsRecording + (inCommunityDb == null ? ", or a community recording for this version" : DbNote(inCommunityDb, entitled));
+    public static string RtNote(bool? inCommunityDb, bool entitled) => RtNeedsRecording + (inCommunityDb == null ? "，或使用适用于此版本的社区录制" : DbNote(inCommunityDb, entitled));
 
-    public const string RtNeedsRecording = "Ray-traced effects need one short recording";
+    public const string RtNeedsRecording = "光追效果需要一次短录制";
 
     /// <summary>The end of a NeedsRecording reason when the manifest has an entry for the build, whatever the sign-in (the
     /// manifest is public; downloads need "db"). Short: the Library row shows three lines.</summary>
-    public const string InDbNote = "in the community database";
+    public const string InDbNote = "社区数据库中有";
     /// <summary><see cref="InDbNote"/> for a user not entitled to "db": the entry is public, the download isn't.</summary>
-    public const string InDbSupportersNote = InDbNote + " for Patreon supporters";
+    public const string InDbSupportersNote = InDbNote + "（Patreon 支持者可用）";
 
-    static string DbNote(bool? inDb, bool entitled) => inDb switch { true => "; " + (entitled ? InDbNote : InDbSupportersNote), false => "; not in the community database yet", null => "" };
+    static string DbNote(bool? inDb, bool entitled) => inDb switch { true => "; " + (entitled ? InDbNote : InDbSupportersNote), false => "；社区数据库中还没有", null => "" };
 
     /// <summary>The manifest's entry for the installed build: by the index's content hash while the index is of this build
     /// (or, without a store build id, from before the exe stamp was kept), else by the store build's alias.</summary>
@@ -1588,14 +1588,14 @@ public sealed partial class ScsKiller : IScsKiller
 
     /// <summary>Why a game's ray tracing needs a recording on this PC (<see cref="NeedsRtRecording"/>), for the detail page.</summary>
     public static string RtWhy(VendorCaps caps, EngineInfo? e) => caps.RtCacheGranularity == RtCacheGranularity.WholeObject
-        ? "This GPU's driver reuses ray tracing pipelines only exactly as the game builds them, and which ones it builds isn't in its files."
-        : $"SCSKiller can't rebuild {(e is { } x ? Format.Engine(x) : "this engine")}'s ray tracing layout from the game files yet.";
+        ? "此显卡驱动只会复用与游戏创建方式完全相同的光追管线，而游戏文件未说明具体会创建哪些管线。"
+        : $"SCSKiller 目前还无法从游戏文件重建{(e is { } x ? Format.Engine(x) : "此引擎")}的光追布局。";
 
     static string RtBlocked(bool rt, string? noRecording, string reason) => !rt ? reason
         : noRecording != null ? $"{reason}; ray-traced effects aren't compiled: they need a recording, {noRecording}" : $"{reason}; {RtAfterRecordingNote}";
 
     /// <summary>The end of a Warmed reason when a recording would add the game's ray tracing: compiled, the recording offered.</summary>
-    public const string RtAfterRecordingNote = "ray tracing needs a 5-min recording";
+    public const string RtAfterRecordingNote = "光追需要 5 分钟的录制";
 
     public static bool RtAfterRecording(GameState s) => s.Status == GameStatus.Warmed && s.StatusReason.Contains(RtAfterRecordingNote, StringComparison.Ordinal);
 
@@ -1604,11 +1604,11 @@ public sealed partial class ScsKiller : IScsKiller
     /// one the game runs. Else the reader's <see cref="EngineInfo.Note"/>. Null: nothing to say.</summary>
     public static string? GuessNote(EngineInfo e) => (e.VersionGuessed, e.ApiGuessed) switch
     {
-        (true, true) => "Unreal version and DirectX",
-        (true, false) when e.GraphicsApi.Contains("D3D12") => "Unreal version",
+        (true, true) => "Unreal 版本和 DirectX 模式",
+        (true, false) when e.GraphicsApi.Contains("D3D12") => "Unreal 版本",
         (false, true) => "DirectX",
         _ => null,
-    } is { } what ? what + " guessed, so the compile could be wrong." : e.Note;
+    } is { } what ? what + "是推测值，编译结果可能不准确。" : e.Note;
 
     /// <summary>The DirectX a game is planned and recorded for: where detection guessed the engine's default
     /// (<see cref="EngineInfo.ApiGuessed"/>), this PC's recording that shows the API decides, else the user's choice, which
@@ -1622,7 +1622,7 @@ public sealed partial class ScsKiller : IScsKiller
         return (choice is { } c ? e with { GraphicsApi = c + ChoiceSuffix, ApiGuessed = false } : e, e.GraphicsApi);
     }
 
-    public const string RecordingSuffix = " (recording)", ChoiceSuffix = " (your choice)";
+    public const string RecordingSuffix = "（录制）", ChoiceSuffix = " (your choice)";
 
     /// <summary>The DirectX a plan for <paramref name="api"/> (<see cref="EngineInfo.GraphicsApi"/>) covers, as
     /// <see cref="PlanBuilder"/> reads it: "11", "12" or "11+12"; null = neither. Why the API was decided takes no part.</summary>
@@ -1636,28 +1636,28 @@ public sealed partial class ScsKiller : IScsKiller
         if (s is not { ApiOverride: { } choice, Engine: { } e } || e.GraphicsApi.EndsWith(ChoiceSuffix, StringComparison.Ordinal)) return null;
         if (ApiKey(e.GraphicsApi) == ApiKey(choice.ToString())) return null;
         var shown = e.GraphicsApi.Contains("D3D12") ? "DirectX 12" : e.GraphicsApi.StartsWith("D3D11") ? "DirectX 11" : e.GraphicsApi;
-        return $"Your recording shows {shown}, so your DirectX {(choice == DxApi.D3D11 ? "11" : "12")} choice isn't used.";
+        return $"你的录制显示的是 {shown}，因此所选的 DirectX {(choice == DxApi.D3D11 ? "11" : "12")} 不会被使用。";
     }
 
     /// <summary>Why a game the user added has no recorder yet, after "needs a recording, ".</summary>
-    public const string ManualNoRecording = "once you confirm its game folder", StreamlineNoRecording = "which DLSS on NVIDIA blocks";
+    public const string ManualNoRecording = "待你确认游戏目录后", StreamlineNoRecording = "而 NVIDIA 上的 DLSS 会阻止录制";
     /// <summary>The same for a game a risk session is offered for (<see cref="GameState.RiskEligible"/>).</summary>
-    public const string RiskNoRecording = "from a session on the game page, at your own risk";
+    public const string RiskNoRecording = "在游戏页面开启会话后可用，风险自负";
 
     /// <summary>The session card's line for an engine SCSKiller doesn't support: nothing compiles from the recording yet. Null:
     /// a supported engine.</summary>
     public static string? SessionKeptNote(GameState s) => s.Engine switch
     {
-        { Encrypted: true } => "Its recording is kept for later. It compiles once you add the game's AES key.",
-        { Unsupported: not null } => "This game isn't supported yet, so its recording is kept for later and nothing compiles from it now.",
+        { Encrypted: true } => "其录制已保留备用。添加游戏的 AES 密钥后即可编译。",
+        { Unsupported: not null } => "此游戏尚不支持，其录制已保留备用，目前不会据此编译。",
         _ => null,
     };
 
     /// <summary>The game page's line for a game a risk session would be offered for but for its store (<see cref="GameState.RiskNoLaunch"/>).</summary>
-    public static string NoLaunchNote(string store) => $"No recording session: SCSKiller can't start games from {store}.";
+    public static string NoLaunchNote(string store) => $"无法录制：SCSKiller 无法从 {store} 启动游戏。";
     /// <summary>An EasyAntiCheat game that an offline session can record (<see cref="OfflineEac"/>), with no recording yet:
     /// NeedsRecording with this reason, "Needs an offline session".</summary>
-    public const string OfflineSessionNote = "EasyAntiCheat blocks the recorder, but you can record at your own risk with an offline session.";
+    public const string OfflineSessionNote = "EasyAntiCheat 会阻止录制器，但你可以用离线会话录制，风险自负。";
 
     /// <summary>The game waits for an offline session (<see cref="OfflineSessionNote"/>).</summary>
     public static bool NeedsOfflineSession(GameState s) => s.Status == GameStatus.NeedsRecording && s.StatusReason == OfflineSessionNote;
@@ -1707,17 +1707,17 @@ public sealed partial class ScsKiller : IScsKiller
         && IsPartlyCompiled(Rejected(s.LastWarmFailed, s.LastWarmCrashed), PlanItems(s.Plan));
     /// <summary>The Library's line: "the driver skipped 180,000 of 258,210 pipelines"</summary>
     public static string PartlyCompiledNote(GameState s) => PartlyCompiledNote(Rejected(s.LastWarmFailed, s.LastWarmCrashed) ?? 0, PlanItems(s.Plan) ?? 0);
-    static string PartlyCompiledNote(long rejected, long items) => $"the driver skipped {rejected:N0} of {items:N0} pipelines";
+    static string PartlyCompiledNote(long rejected, long items) => $"驱动跳过了 {items:N0} 条管线中的 {rejected:N0} 条";
     /// <summary>The page's and the CLI's: "the driver refused 180,000 of 258,210 pipelines, so those can still stutter the first time"</summary>
     public static string RefusedNote(GameState s) => RefusedNote(Rejected(s.LastWarmFailed, s.LastWarmCrashed) ?? 0, PlanItems(s.Plan) ?? 0);
-    static string RefusedNote(long rejected, long items) => $"the driver refused {rejected:N0} of {items:N0} pipelines, so those can still stutter the first time";
+    static string RefusedNote(long rejected, long items) => $"驱动拒绝了 {items:N0} 条管线中的 {rejected:N0} 条，这些首次使用时仍可能卡顿";
     /// <summary>The compile card's line on what the last warm's driver refused; null when it refused nothing. A partly compiled
     /// game's says what it means and what helps.</summary>
     public static string? RefusedLine(GameState s) => s.LastWarmFailed is not > 0 ? null
         : IsPartlyCompiled(s) && PlanItems(s.Plan) is { } n
-            ? $"The driver refused {s.LastWarmFailed:N0} of {n:N0} pipelines. Nothing is broken: the game compiles any of them it uses itself, "
-              + "the first time, which is when it can stutter. A driver or SCSKiller update may let them compile, so compile the game again after one."
-        : $"The driver skipped {s.LastWarmFailed:N0} combination{(s.LastWarmFailed == 1 ? "" : "s")}.";
+            ? $"驱动拒绝了 {n:N0} 条管线中的 {s.LastWarmFailed:N0} 条。这并非故障：游戏用到时会自行编译，"
+              + "首次使用时正是可能卡顿的时候。驱动或 SCSKiller 更新后或许能编译它们，更新完成后请再编译一次。"
+        : $"驱动跳过了 {s.LastWarmFailed:N0} 种组合。";
 
     /// <summary>The last warm is known and neither failed nor crashed; skipped pipelines (not in this game version) aren't failures.</summary>
     public static bool NothingFailed(GameState s) => s.LastWarmFailed != null && s.LastWarmFailed + (s.LastWarmCrashed ?? 0) == 0;
@@ -1742,15 +1742,15 @@ public sealed partial class ScsKiller : IScsKiller
     /// compile would do; null otherwise.</summary>
     static string? PartlyWarmedNote(GameRecord r, int threads, TimeSpan? careful) => r.FirstLaunch is not { } l || !IsPartlyWarmed(l) ? null
         : $"{l.Compiled * 100:0}% of the {l.Hits + l.Compiles:N0} pipelines its first launch created still compiled"
-          + (r.WarmedCareful ? ", even after a careful compile"
-              : r.Plan?.Stats.Recorded == 0 ? "; a careful compile only changes how the recorded pipelines compile, and there is no recording yet (turn recording on and play)"
-              : $"; a careful compile ({threads} threads, in passes) reaches more of them" + (careful is { } t ? $", in about {Duration(t)}" : "")
-                + (r.Careful ? ": the next compile is careful" : ""));
+          + (r.WarmedCareful ? "，即使经过谨慎编译"
+              : r.Plan?.Stats.Recorded == 0 ? "；谨慎编译只改变录制管线的编译方式，而目前还没有录制（开启录制并游玩一次）"
+              : $"；谨慎编译（{threads} 线程，分批进行）能覆盖更多" + (careful is { } t ? $", in about {Duration(t)}" : "")
+                + (r.Careful ? "：下次将采用谨慎编译" : ""));
 
     /// <summary>"45 s", "8 min", "2 h 5 min".</summary>
-    public static string Duration(TimeSpan t) => t.TotalMinutes < 1 ? $"{Math.Max(1, (int)t.TotalSeconds)} s"
-        : t.TotalHours < 1 ? $"{(int)Math.Round(t.TotalMinutes)} min"
-        : $"{(int)t.TotalHours} h" + (t.Minutes > 0 ? $" {t.Minutes} min" : "");
+    public static string Duration(TimeSpan t) => t.TotalMinutes < 1 ? $"{Math.Max(1, (int)t.TotalSeconds)} 秒"
+        : t.TotalHours < 1 ? $"{(int)Math.Round(t.TotalMinutes)} 分钟"
+        : $"{(int)t.TotalHours} 小时" + (t.Minutes > 0 ? $" {t.Minutes} 分钟" : "");
 
     /// <summary>The share of the stage sets found in the game files that the plan compiles (<see cref="PlanStats.StageSets"/>
     /// minus <see cref="PlanStats.LeftOut"/>); null when not counted (no plan, a DirectX 11-only plan, a plan from before
@@ -1777,51 +1777,51 @@ public sealed partial class ScsKiller : IScsKiller
     public static bool ShowsCoverage(GameState s) => s.Plan != null && (s.Status != GameStatus.Unsupported || s.WarmedAt != null);
 
     /// <summary>The game page's row for pipelines a plan leaves out for the cache budget (<see cref="PlanStats.CacheBudgetLeftOut"/>).</summary>
-    public static string CacheBudgetTitle(VendorCaps caps) => caps.PerGameCacheCap != null ? "More than the Intel shader cache keeps per game"
-        : "More than the AMD shader cache holds";
+    public static string CacheBudgetTitle(VendorCaps caps) => caps.PerGameCacheCap != null ? "超出 Intel 着色器缓存的单游戏保留量"
+        : "超出 AMD 着色器缓存总容量";
 
     /// <summary>Why a plan leaves pipelines out for the cache budget (<see cref="PlanStats.CacheBudgetLeftOut"/>), on the game page.</summary>
     public static string CacheBudgetNote(VendorCaps caps) => (caps.PerGameCacheCap is { } cap
-            ? $"This game has more pipelines than the Intel driver keeps for one game ({App.Format.Bytes(cap)}). "
-            : $"This game has more pipelines than the AMD driver's whole shader cache can hold ({App.Format.Bytes(AmdAppCache.DxcCacheCap)}). ")
-        + "So SCSKiller compiles the ones most likely to be used, recorded ones first. The rest compile while you play.";
+            ? $"此游戏的管线数超过 Intel 驱动为单个游戏保留的容量（{App.Format.Bytes(cap)}）。"
+            : $"此游戏的管线数超过 AMD 驱动整个着色器缓存的容量（{App.Format.Bytes(AmdAppCache.DxcCacheCap)}）。")
+        + "因此 SCSKiller 优先编译最可能用到的部分（录制到的优先），其余在游玩时编译。";
 
-    /// <summary>The game page's "Left out" row: <see cref="PlanStats.LeftOut"/> and why. Past the Uncovered ones, they're
+    /// <summary>The game page's "未纳入计划" row: <see cref="PlanStats.LeftOut"/> and why. Past the Uncovered ones, they're
     /// stage sets no recording showed yet (no root signature or template).</summary>
     public static string LeftOutValue(PlanStats p)
     {
         var notSeen = p.LeftOut - p.Uncovered;
-        return $"{p.LeftOut:N0} (" + (notSeen <= 0 ? "shader slots SCSKiller can't rebuild"
-            : p.Uncovered > 0 ? $"{p.Uncovered:N0} for shader slots SCSKiller can't rebuild, {notSeen:N0} not seen in a recording yet"
-            : "not seen in a recording yet") + ")";
+        return $"{p.LeftOut:N0} (" + (notSeen <= 0 ? "SCSKiller 无法重建的着色器槽位"
+            : p.Uncovered > 0 ? $"{p.Uncovered:N0} 属于 SCSKiller 无法重建的着色器槽位，{notSeen:N0} 尚未在录制中出现"
+            : "尚未在录制中出现") + ")";
     }
 
     /// <summary>The game page's line for a plan whose left-out stage sets no recording showed yet.</summary>
-    public static string NotSeenNote(bool recordOn) => "SCSKiller hasn't seen how the game sets the rest up yet. "
-        + (recordOn ? "Keep playing with recording on. What it sees is added the next time it compiles." : "Playing longer with recording on teaches it.");
+    public static string NotSeenNote(bool recordOn) => "SCSKiller 还没见过游戏如何设置其余部分。"
+        + (recordOn ? "请保持录制开启继续游玩，捕获到的内容会在下次编译时加入。" : "开启录制后多玩一会儿即可让它学到。");
 
     /// <summary>The game page's line for a plan whose left-out stage sets use root signature slots the engine adds.</summary>
-    public static string EngineSlotsNote(bool recordOn) => "The rest use shader slots this game's engine adds. "
-        + (recordOn ? "Keep playing with recording on. They're rebuilt the next time it compiles." : "A 5-minute recording lets SCSKiller rebuild them.");
+    public static string EngineSlotsNote(bool recordOn) => "其余部分使用了该游戏引擎额外添加的着色器槽位。"
+        + (recordOn ? "请保持录制开启继续游玩，下次编译时会重建它们。" : "一次 5 分钟的录制可让 SCSKiller 重建它们。");
 
     /// <summary>The status note of a partial plan (<see cref="IsPartial"/>): what it compiles and what would add the rest.</summary>
     public static string? PartialNote(PlanStats? p) => !IsPartial(p) ? null
-        : p!.Recorded == 0 ? $"compiles {p.Generated:N0} pipelines; a 5-minute recording lets SCSKiller rebuild the rest"
-        : $"compiles {p.Recorded + p.Generated:N0} pipelines; {p.Uncovered:N0} more shader combinations use shader slots SCSKiller can't rebuild yet";
+        : p!.Recorded == 0 ? $"编译 {p.Generated:N0} 条管线；一次 5 分钟的录制可让 SCSKiller 重建其余部分"
+        : $"编译 {p.Recorded + p.Generated:N0} 条管线；另有 {p.Uncovered:N0} 种着色器组合使用了 SCSKiller 暂时无法重建的着色器槽位";
 
     /// <summary>A queue line's progress (CLI): " done/total (N failed[, M skipped: not in this install]) rate/s" (reading shaders: " done/total packages"), then for
     /// Done/Stopped the note (<see cref="WarmCounts"/>); "" without progress.</summary>
     public static string ProgressText(QueueItem q)
     {
         if (q.Progress is not { } x) return "";
-        if (q.Stage == QueueStage.Indexing) return $" {x.Done}/{x.Total} packages";
-        var counts = $"{x.Failed} failed" + (x.Skipped > 0 ? $", {x.Skipped} skipped: not in this install" : "");
-        return $" {x.Done}/{x.Total} ({counts}) {x.PerSecond:0}/s" + (MemoryLimitNote(x) is { } m ? ", " + m : "")
+        if (q.Stage == QueueStage.Indexing) return $" {x.Done}/{x.Total} 个包";
+        var counts = $"{x.Failed} failed" + (x.Skipped > 0 ? $"，跳过 {x.Skipped} 个：不在当前安装中" : "");
+        return $" {x.Done}/{x.Total}（{counts}）{x.PerSecond:0}/秒" + (MemoryLimitNote(x) is { } m ? ", " + m : "")
             + (q.Stage is QueueStage.Done or QueueStage.Stopped or QueueStage.Warming && q.Note is { } n ? " - " + n : "");
     }
 
     /// <summary>"memory limit: 4 of 32 threads" while the warm's memory budget runs fewer threads than asked; null otherwise.</summary>
-    public static string? MemoryLimitNote(WarmProgress p) => p is { Workers: > 0 } && p.Workers < p.Threads ? $"memory limit: {p.Workers} of {p.Threads} threads" : null;
+    public static string? MemoryLimitNote(WarmProgress p) => p is { Workers: > 0 } && p.Workers < p.Threads ? $"内存限制：{p.Threads} 线程中启用 {p.Workers} 个" : null;
 
     /// <summary>A warming item's note when its done count stopped moving (<see cref="StallAfter"/>): "no progress for 3 min".</summary>
     public static string StalledNote(TimeSpan since) => $"no progress for {Math.Max(1, (int)since.TotalMinutes)} min";
@@ -1838,8 +1838,8 @@ public sealed partial class ScsKiller : IScsKiller
     public static string? WarmCounts(long failed, long skipped, long crashed = 0, long driverSkipped = 0, long unbuilt = 0) =>
         string.Join(", ", new[]
         {
-            failed > 0 ? $"{failed} failed (the driver rejected them)" : null,
-            skipped > 0 ? $"{skipped} skipped (a shader not in this install)" : null,
+            failed > 0 ? $"{failed} 条失败（被驱动拒绝）" : null,
+            skipped > 0 ? $"{skipped} 条跳过（着色器不在此安装中）" : null,
             crashed > 0 ? $"{crashed} skipped ({(crashed == 1 ? "it crashes" : "they crash")} the GPU driver)" : null,
             driverSkipped > 0 ? $"{driverSkipped} skipped for this compile (the GPU driver crashed or hung on {(driverSkipped == 1 ? "it" : "them")} or on what {(driverSkipped == 1 ? "it builds" : "they build")} on)" : null,
             unbuilt > 0 ? $"{unbuilt} skipped (SCSKiller can't build {(unbuilt == 1 ? "it" : "them")} yet)" : null,
@@ -1872,7 +1872,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     public static int RamGB() => RamGB(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes);
 
-    /// <summary>The most "Maximum memory for compiling" offers: the RAM less 2 GB that Windows and the desktop keep using
+    /// <summary>The most "编译最大内存" offers: the RAM less 2 GB that Windows and the desktop keep using
     /// while the compile runs, at least 16 GB.</summary>
     public static int MaxCompileMemoryGB(long totalPhysicalBytes) => Math.Max(16, RamGB(totalPhysicalBytes) - 2);
     public const double DefaultAmdPsoPerSecond = 160;
@@ -2194,8 +2194,8 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var p = pending ?? PendingOf(g, r, e);
         return WarmChanged(g, r, e, gpu)
-            ?? (p.Unknown ? (p.Recorded + (p.Planned ?? 0) is > 0 and var u ? $"{u:N0} pipeline{(u == 1 ? "" : "s")} to compile again" : "compile again")
-                + ": what the last compile replayed is no longer known" : null)
+            ?? (p.Unknown ? (p.Recorded + (p.Planned ?? 0) is > 0 and var u ? $"{u:N0} 条管线有待重新编译" : "compile again")
+                + "：上次编译重放的内容已无法确定" : null)
             ?? (!CurrentPlanner(r.WarmedPlanVersion, r.WarmedPlanRules, r.WarmedReaderVersion, e) ? PlannerChanged(r, p.Planned, e)
                 : Maximum(r) && r.WarmedPerStage ? "Maximum mode: every shader pairing is still to compile"   // Maximum -> standard: nothing new
                 : RayTracing(r) && !r.WarmedRayTracing && r.Plan?.Stats.RtLibraries > 0 ? RtToCompileReason : null)   // on -> off: nothing new
@@ -2204,8 +2204,8 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     /// <summary>What <paramref name="n"/> new pipelines are: all recorded, all from upscaler packs, or a mix.</summary>
-    static string NewKind(long n, Pending p) => (n == 1 ? "pipeline" : "pipelines") is var w && n == p.Upscaler ? "upscaler " + w
-        : n == p.Recorded - p.Upscaler ? w + " recorded" : p.Upscaler > 0 ? $"{w} ({p.Upscaler:N0} upscaler)" : w;
+    static string NewKind(long n, Pending p) => (n == 1 ? "pipeline" : "pipelines") is var w && n == p.Upscaler ? "超分 " + w
+        : n == p.Recorded - p.Upscaler ? w + " 已录制" : p.Upscaler > 0 ? $"{w} ({p.Upscaler:N0} upscaler)" : w;
 
     /// <summary>A newer planner or engine reader than the warmed plan's, or other rules (<see cref="CurrentPlanner"/>). Its rebuild (RunItem)
     /// counts the pipelines the warm didn't compile; none marks the warm current then, so a count here is more than 0. Not
@@ -2223,14 +2223,14 @@ public sealed partial class ScsKiller : IScsKiller
         : TrimmedReason(g.Id, r) is { } trimmed ? trimmed
         : WarmMissesGame(r) ? MissesGameReason
         : r.AgsMissed && r.WarmedAgsApp != null ? AgsMissedReason(r)
-        : AftermathChanged(g, r, e) ? (r.WarmedAftermath ? (r.AftermathLost ? AftermathLostReason : "the last compile started NVIDIA Aftermath, the game no longer does") : AftermathOf(g, r, e).Retry ? AftermathRetryReason : AftermathReason)
-        : LayerNow(g) is var layer && layer != r.WarmedLayer ? (layer == null ? "the HDR mod the last compile ran through is gone" : r.WarmedLayer == null ? NotThroughLayerReason : "the HDR mod changed since the compile")
+        : AftermathChanged(g, r, e) ? (r.WarmedAftermath ? (r.AftermathLost ? AftermathLostReason : "上次编译启动了 NVIDIA Aftermath，游戏已不再启动") : AftermathOf(g, r, e).Retry ? AftermathRetryReason : AftermathReason)
+        : LayerNow(g) is var layer && layer != r.WarmedLayer ? (layer == null ? "上次编译所用的 HDR mod 已不存在" : r.WarmedLayer == null ? NotThroughLayerReason : "the HDR mod changed since the compile")
         : r.WarmedExeName is { } other && !other.Equals(Path.GetFileName(g.ExePath), StringComparison.OrdinalIgnoreCase)
             ? $"the last compile filled the cache of {other}, but the game runs {Path.GetFileName(g.ExePath)}"
         : WarmExeName(g, r) is var runs && (r.WarmedExeName ?? Path.GetFileName(g.ExePath)) is var warmed && runs != warmed && CaseMatters(g, r, warmed)
             ? $"the game runs as {runs}, the warm filled the cache of {warmed} (the driver keys it on the exe name's exact case)"
         : !Reread(r, e) && IndexStamp(g) != (r.WarmedIndexStamp ?? "") ? IndexChangedReason
-        : g.Version != null && r.WarmedGameVersion != null ? (g.Version != r.WarmedGameVersion ? $"game updated since the warm (build {r.WarmedGameVersion} -> {g.Version})" : IndexChanged(r, e))
+        : g.Version != null && r.WarmedGameVersion != null ? (g.Version != r.WarmedGameVersion ? $"game updated since the warm (build {r.WarmedGameVersion} -> {g.Version})" : "game updated since the warm")
         : r.WarmedExeStamp != ExeStamp(g) ? "game updated since the warm"   // no store version (older state, other stores): the exe
         : IndexChanged(r, e);
 
@@ -2293,7 +2293,7 @@ public sealed partial class ScsKiller : IScsKiller
     /// shows for them; null = none.</summary>
     public static string? PlanCheckLine(IEnumerable<QueueItem> queue) =>
         queue.Where(q => q.PlanCheck && !Finished(q.Stage)).ToList() is { Count: > 0 and var n } checks
-            ? $"Checking {n} game{(n == 1 ? "" : "s")} for more to compile" + (checks.All(q => q.Note == WhenIdleNote) ? " (while idle)" : "") : null;
+            ? $"正在检查 {n} 个游戏是否有新内容可编译" + (checks.All(q => q.Note == WhenIdleNote) ? "（空闲时进行）" : "") : null;
 
     /// <summary>What the queue's Clear queue (<paramref name="only"/> null) or Remove selected removes: the listed items but
     /// the running one, which only its own Stop and remove stops.</summary>
@@ -2325,7 +2325,7 @@ public sealed partial class ScsKiller : IScsKiller
     const string IndexChangedReason = "game shaders changed since the warm";
 
     /// <summary>A warm without a layer (also every warm from before compiles ran through one) and a layer now.</summary>
-    internal const string NotThroughLayerReason = "the last compile didn't run through the game's HDR mod";
+    internal const string NotThroughLayerReason = "上次编译未经由游戏的 HDR mod 运行";
 
     /// <summary>NVIDIA's DXCache key ignores the exe name's case (measured: same files in upper case); AMD's DxcCache key is
     /// case-sensitive (FNV-1a of the UTF-16 name as launched). Other vendors: unmeasured, assume it matters.</summary>
@@ -2368,7 +2368,7 @@ public sealed partial class ScsKiller : IScsKiller
         (rec.AgsSeenApp, rec.AgsSeenEngine) = (seen.App, seen.Engine);
         var key = AmdAppCache.AgsKey(WarmExeName(g, rec), seen.App);
         var held = rec.GameKeys.Where(k => k.StartsWith(AmdAppCache.D3D12Prefix, StringComparison.Ordinal)).ToList();
-        Log?.Report($"{g.Name}: the game registered the AGS app name {seen.App} (engine {seen.Engine}), key {key}: " + (held.Contains(key) ? "the key it holds, so its compiles register it"
+        Log?.Report($"{g.Name}: the game registered the AGS app name {seen.App} (engine {seen.Engine}), key {key}: " + (held.Contains(key) ? "它持有的键，以便其编译被记录"
             : held.Count > 0 ? $"not the key it holds ({string.Join(", ", held)}), so not used" : "used once the game is seen holding that key"));
         return true;
     }
@@ -2452,14 +2452,14 @@ public sealed partial class ScsKiller : IScsKiller
         r.WarmedAgsApp != null && !r.GameKeys.Any(k => k.StartsWith(AmdAppCache.D3D12Prefix, StringComparison.Ordinal)) && IsPartlyWarmed(r.FirstLaunch);
 
     static string AgsMissedReason(GameRecord r) =>
-        $"the compile didn't reach this game's cache (it registered the AGS app name {r.WarmedAgsApp}"
-        + (r.FirstLaunch is { } l ? $"; the first launch still compiled {l.Compiled * 100:0}% of its pipelines" : "")
-        + "): the next compile runs without it";
+        $"编译没有写入此游戏的缓存（它注册了 AGS 应用名 {r.WarmedAgsApp}"
+        + (r.FirstLaunch is { } l ? $"；首次启动仍编译了 {l.Compiled * 100:0}% 的管线" : "")
+        + "）：下次编译将不带它运行";
 
-    public const string MissesGameReason = "the compile didn't reach this game's cache: the game uses another driver-cache key";
-    public const string CantReachReason = "the compile can't reach this game: it reads its shaders from a different driver cache than the one SCSKiller fills. Clear its cache to free the space";
-    public const string UnreachedReason = "the compile didn't help this game on NVIDIA, it needs a custom loader";
-    public const string ClearForGameNote = "its compiled cache isn't used, clear it to free the space";
+    public const string MissesGameReason = "编译没有写入此游戏的缓存：游戏使用了另一个驱动缓存键";
+    public const string CantReachReason = "编译无法作用于该游戏：它从另一个驱动缓存读取着色器，而非 SCSKiller 填充的那个。清除其缓存可释放空间";
+    public const string UnreachedReason = "在 NVIDIA 上编译对此游戏无效，它需要自定义加载器";
+    public const string ClearForGameNote = "它的编译缓存未被使用，清除即可释放空间";
 
     /// <summary>Hits stay under it: a cache hit under a 70-thread precompile took 5 ms at the median (graphics 0.6 ms). A
     /// warm the game's lookups miss: 42-140 ms.</summary>
@@ -2529,15 +2529,15 @@ public sealed partial class ScsKiller : IScsKiller
         return (0, 0);
     }
 
-    public const string TrimmedPartReason = "part of this game's compiled shader cache is gone, compile again",
-        TrimmedAllReason = "this game's compiled shader cache is gone, compile again";
+    public const string TrimmedPartReason = "此游戏的部分已编译着色器缓存已丢失，请重新编译",
+        TrimmedAllReason = "此游戏的已编译着色器缓存已丢失，请重新编译";
 
     /// <summary>AMD: a warmed file is gone. NVIDIA and others: every key file is gone, or a warmed file is gone or holds less (<see cref="Shrunk"/>).</summary>
     public static string LinkTargetMissing(string dir) =>
-        $"the driver's cache folder {dir} is a link whose target is missing: reconnect that drive, or remove the link so the driver makes the folder again";
+        $"驱动的缓存目录 {dir} 是指向丢失目标的链接：请重新连接该磁盘，或删除该链接让驱动重新创建目录";
 
-    public const string OverCacheLimitReason = "this game's shaders don't fit the driver's shader cache, raise its size",
-        CacheFullReason = "the driver's shader cache is full, so it removed older games' files";
+    public const string OverCacheLimitReason = "此游戏的着色器放不进驱动的着色器缓存，请调大其容量",
+        CacheFullReason = "驱动的着色器缓存已满，因此移除了较旧游戏的文件";
 
     /// <summary>Null while compiling again wouldn't keep the files (<see cref="KeptReason"/>).</summary>
     string? TrimmedReason(string gameId, GameRecord r) => Trimmed(gameId, r) is { } t && KeptReason(r) == null ? t : null;
@@ -2673,8 +2673,8 @@ public sealed partial class ScsKiller : IScsKiller
     {
         if (AmdAppCache.IsNameHashed(keys, exe) == false)
             Log?.Report($"{g.Name}: the driver keys {exe}'s cache as {string.Join(", ", keys.Where(k => k.StartsWith(AmdAppCache.D3D12Prefix)))}, " +
-                        $"not its name hash {AmdAppCache.DxcKey(exe)} " +
-                        (Ags(g) is { } a && keys.Contains(AmdAppCache.AgsKey(Path.GetFileName(g.ExePath), a.App)) ? $"(its AGS app name {a.App}" : "(an app profile") + ": the exe name's case doesn't matter)");
+                        $"而不是它的名称哈希 {AmdAppCache.DxcKey(exe)} " +
+                        (Ags(g) is { } a && keys.Contains(AmdAppCache.AgsKey(Path.GetFileName(g.ExePath), a.App)) ? $"（其 AGS 应用名 {a.App}" : "(an app profile") + ": the exe name's case doesn't matter)");
     }
 
     /// <summary>On AMD, what the game registers with AGS: what its own process was seen registering under the key it held
@@ -2735,8 +2735,8 @@ public sealed partial class ScsKiller : IScsKiller
     // What the user skipped: the driver and the game build each stale game was offered for.
     string StaleKey(GameState s) => $"{DriverId}|{s.Game.Version ?? ExeStamp(s.Game)}";
 
-    public const string DriverPart = "Driver cache", WindowsPart = "Windows shader cache", PipelinePart = "Game's pipeline cache",
-        PrecachePart = "Game's shader precache";
+    public const string DriverPart = "驱动缓存", WindowsPart = "Windows shader cache", PipelinePart = "Game's pipeline cache",
+        PrecachePart = "游戏的着色器预缓存";
 
     /// <summary><paramref name="gamePrecache"/>: also what the game writes itself and rebuilds at its next start
     /// (<see cref="OwnPipelineCaches"/>, *.ushaderprecache files): <see cref="PipelinePart"/>, <see cref="PrecachePart"/>.</summary>
@@ -2793,17 +2793,17 @@ public sealed partial class ScsKiller : IScsKiller
         var rec = Store.LoadGame(gameId);
         var exe = Path.GetFileName(s.Game.ExePath);
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         if (GameRunning(s.Game)) throw new InvalidOperationException($"{s.Game.Name} is running");
         var keys = DriverKeys(s.Game, rec).Keys;
         var driver = AppCache != null && keys.Count > 0;
         if (driver && SharedWith(gameId, keys) is { Count: > 0 } shared)
             throw new InvalidOperationException($"{s.Game.Name}'s driver cache is shared with " +
                 string.Join(", ", shared.Select(x => $"{x.Name} ({string.Join(", ", x.Keys)})")) +
-                ": the driver gives their exes the same key (an app profile, or the same exe name), so clearing it would clear theirs too");
+                "：驱动给它们的 exe 分配了相同的键（应用配置或同名 exe），清除会连带清除它们的");
         var parts = GameCaches(gameId, gamePrecache);
         if (!driver && parts.Count == 0) return false;
-        AppCacheFiles.DeleteAll(parts.SelectMany(p => p.Files).Select(f => new FileInfo(f)).ToList());   // throws "files in use by <process>"
+        AppCacheFiles.DeleteAll(parts.SelectMany(p => p.Files).Select(f => new FileInfo(f)).ToList());   // throws "被 <进程> 使用的文件"
         foreach (var dir in parts.Where(p => p.Name == WindowsPart).SelectMany(p => p.Files).Select(Path.GetDirectoryName).Distinct())
             try { Directory.Delete(dir!); }
             catch (IOException) { }   // not empty: a file appeared meanwhile, left alone
@@ -2829,9 +2829,9 @@ public sealed partial class ScsKiller : IScsKiller
     public void SetCarefulCompile(string gameId, bool on)
     {
         var s = Find(gameId);
-        if (CarefulThreads(Vendor.Vendor) == null) throw new InvalidOperationException($"the careful compile is for AMD drivers, not {Vendor.Gpu.Name}");
+        if (CarefulThreads(Vendor.Vendor) == null) throw new InvalidOperationException($"谨慎编译仅适用于 AMD 驱动，不适用于 {Vendor.Gpu.Name}");
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         var rec = Store.LoadGame(gameId);
         if (rec.Careful == on) return;
         (rec.Careful, rec.ResumeAt) = (on, 0);   // a stopped warm's resume point counts the other schedule's items
@@ -2853,7 +2853,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var s = Find(gameId);
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         var rec = Store.LoadGame(gameId);
         if (rec.ApiOverride == value) return;
         (rec.ApiOverride, rec.ResumeAt) = (value, 0);   // a stopped warm's resume point counts the other plan's items
@@ -2899,17 +2899,17 @@ public sealed partial class ScsKiller : IScsKiller
         var exe = Path.GetFileName(g.ExePath);
         if (AppCache is not AmdAppCache amd)
             return (keys, AppCache == null || keys.Count > 0 ? null
-                : $"the driver cache key of {exe} isn't learned yet (SCSKiller learns it when it compiles the game or sees it running): the driver cache is not cleared");
+                : $"尚未获知 {exe} 的驱动缓存键（SCSKiller 在编译该游戏或看到其运行时学到）：不会清除驱动缓存");
         var names = new[] { exe, rec.LaunchedExeName, rec.WarmedExeName }.OfType<string>().Distinct().ToList();
         var dxc = keys.Where(k => k.StartsWith(AmdAppCache.D3D12Prefix, StringComparison.Ordinal)).ToList();
         // the AGS app name's key is only a hint: cleared once a process is seen holding it, like any key
         var ags = AgsFor(g, rec) is { } a && AgsKey(g, null) is { } ak && !keys.Contains(ak) && (dxc.Count == 0 || amd.FilesOf([ak]).Count > 0)
-            ? $"the D3D12 key {ak} that {g.Name} gets from its AGS app name {a.App} isn't learned yet (SCSKiller learns it when it compiles the game or sees it running): it is not cleared"
+            ? $"尚未获知 {g.Name} 由 AGS 应用名 {a.App} 得到的 D3D12 键 {ak}（SCSKiller 在编译该游戏或看到其运行时学到）：不会清除"
             : null;
         if (dxc.Count > 0 && !names.Any(n => dxc.Contains(AmdAppCache.DxcKey(n)))) return (keys, ags);
         keys.UnionWith(names.Select(AmdAppCache.HintKey).Where(k => amd.FilesOf([k]).Count > 0));
         return (keys, dxc.Count > 0 || ags != null ? ags
-            : $"the D3D12 driver cache key of {exe} isn't learned yet: clearing takes the key the driver gives that exe name; a driver app profile's key or a D3D11 key would be missed");
+            : $"尚未获知 {exe} 的 D3D12 驱动缓存键：清除只能按驱动给该 exe 名的键进行，驱动应用配置的键或 D3D11 键会被漏掉");
     }
 
     /// <summary>Which of the game's driver cache <see cref="ClearGameCache"/> may miss (a key not learned yet); null = none.</summary>
@@ -2917,7 +2917,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     public bool SetEncryptionKey(string gameId, string key)
     {
-        var game = Games.FirstOrDefault(s => s.Game.Id == gameId)?.Game ?? throw new ArgumentException($"unknown game {gameId}");
+        var game = Games.FirstOrDefault(s => s.Game.Id == gameId)?.Game ?? throw new ArgumentException($"未知游戏 {gameId}");
         return (_reader as UnrealReader ?? (_reader as EngineReaders)?.Get<UnrealReader>()) is { } u && u.SetKey(game, key);
     }
 
@@ -2937,7 +2937,7 @@ public sealed partial class ScsKiller : IScsKiller
     public void ApplyDriverUpdateMode()
     {
         if (Settings.OnDriverUpdate == DriverUpdateMode.Off) ScheduledTask.Unregister();
-        else ScheduledTask.Register(ScheduledTask.TaskExe() ?? throw new FileNotFoundException(@"the command-line tool (cli\scskiller.exe) is not next to the app"));
+        else ScheduledTask.Register(ScheduledTask.TaskExe() ?? throw new FileNotFoundException(@"命令行工具（cli\scskiller.exe）不在程序旁边"));
     }
 
     /// <param name="prompt">a plan check it queues doesn't wait for idle (<see cref="CheckPlan"/>): the user asked for the change</param>
@@ -3130,7 +3130,7 @@ public sealed partial class ScsKiller : IScsKiller
         rec.RunsExeFrom = rec.RunsExe != null ? rec.RunsExeFrom : g.ExePath;   // discovery's, also when a followed exe is followed again
         (rec.RunsExe, rec.RunsExeBuild, rec.RunsExeAt, rec.RunsExeWas, rec.RunsExeProven) = (runs, Build(g, runs), at, g.ExePath, proven);
         Store.SaveGame(g.Id, rec);
-        var there = dir.Equals(Path.GetDirectoryName(runs), StringComparison.OrdinalIgnoreCase) ? "is set up for it" : "moves there";
+        var there = dir.Equals(Path.GetDirectoryName(runs), StringComparison.OrdinalIgnoreCase) ? "已为它设置" : "moves there";
         Log?.Report($"{g.Name}: runs {runs}, not {g.ExePath}: following it (the recorder {there} once the game exits)");
         RecorderLog($"{g.Name}: the game runs {runs}, not {g.ExePath}");
     }
@@ -3171,7 +3171,7 @@ public sealed partial class ScsKiller : IScsKiller
         if (!GameFiles.IsShipping(g.ExePath) || !SameFolder(g.ExePath, o.Exe) || !File.Exists(o.Exe)) return;
         if (o.ShippingRan || !o.Device)
         {
-            Log?.Report($"{g.Name}: ran {o.Exe}, not following it: " + (o.ShippingRan ? $"{Path.GetFileName(g.ExePath)} ran too" : "it made no device"));
+            Log?.Report($"{g.Name}: ran {o.Exe}, not following it: " + (o.ShippingRan ? $"{Path.GetFileName(g.ExePath)} ran too" : "它没有创建设备"));
             return;
         }
         Follow(g, o.Exe, o.At, proven: true);
@@ -3182,13 +3182,13 @@ public sealed partial class ScsKiller : IScsKiller
         XboxSource.LauncherOrUtility(exe) || GameFiles.NotTheGameExe(g.InstallDir, Path.Combine(Path.GetDirectoryName(g.ExePath)!, exe));
 
     GameState Find(string gameId) => Games.FirstOrDefault(s => s.Game.Id == gameId)
-                                     ?? throw new ArgumentException($"unknown game '{gameId}' (scan first)");
+                                     ?? throw new ArgumentException($"未知游戏“{gameId}”（请先扫描）");
 
     /// <summary>A game the user added (by its exe or in a folder) gets another name; its id, which everything SCSKiller keeps
     /// of it is stored under, stays. InvalidOperationException for a store's game, ArgumentException for an empty name.</summary>
     public void RenameManualGame(string gameId, string name)
     {
-        if (Find(gameId).Game.Store != Core.Store.Manual || Manual is not { } manual) throw new InvalidOperationException("only a game you added can be renamed");
+        if (Find(gameId).Game.Store != Core.Store.Manual || Manual is not { } manual) throw new InvalidOperationException("只有你手动添加的游戏可以重命名");
         manual.Rename(gameId, name);
         GameState? now = null;
         lock (_lock)
@@ -3225,7 +3225,7 @@ public sealed partial class ScsKiller : IScsKiller
             var was = Store.LoadGame(added.Id);
             if (was.RecorderFiles.Count > 0 || was.RecorderChained != null || was.RecorderExe != null || ProxyOnDisk(added) || ProxyOnDisk(RecordedAt(added, was)))
             {
-                TakeOutNow(added, "its store entry took it over", anyCopys: false);
+                TakeOutNow(added, "被它的商店条目接管了", anyCopys: false);
                 was = Store.LoadGame(added.Id);
                 if (was.RecorderFiles.Count > 0 || was.RecorderChained != null || was.RecorderRollback || ProxyOnDisk(added) || ProxyOnDisk(RecordedAt(added, was))) return;
             }
@@ -3282,7 +3282,7 @@ public sealed partial class ScsKiller : IScsKiller
         var foreign = ForeignVariants(game, every, engine);
         if (downloads.Count > 0) Community.Union(local, downloads, src = Path.Combine(work, "merged.db"), foreign);
         if (foreign.Count > 0) Log?.Report($"{game.Name}: {foreign.Count:N0} community recording pipelines made at another texture filtering setting than the one compiled left out"
-            + (every || File.Exists(local) ? "" : " (Maximum mode compiles them)"));
+            + (every || File.Exists(local) ? "" : "（最大模式会编译它们）"));
         if (!rayTracing)
         {
             var kept = Path.Combine(work, "no-rt.db");
@@ -3312,8 +3312,8 @@ public sealed partial class ScsKiller : IScsKiller
         }
         if (r.Found > 0 || !r.Complete)
             Log?.Report($"{game.Name}: recording rehydrated from the install ({r.Found} shaders"
-                + (r.FoundInMiddleware > 0 ? $", {r.FoundInMiddleware} of them from middleware DLLs" : "")
-                + (r.Complete ? ")" : $", {r.Missing.Count} not in this install: those PSOs are skipped)"));
+                + (r.FoundInMiddleware > 0 ? $"，其中 {r.FoundInMiddleware} 条来自中间件 DLL" : "")
+                + (r.Complete ? ")" : $"，{r.Missing.Count} 个不在当前安装中：这些 PSO 会被跳过）"));
         return new Recording(db);
     }
 
@@ -3428,7 +3428,7 @@ public sealed partial class ScsKiller : IScsKiller
             foreach (var g in games)
                 if (await SyncCommunity(g, null, CancellationToken.None) || DbEntryChanged(g)) Refresh(g);
         }
-        catch (Exception e) { Log?.Report($"community database: {e.Message}"); }
+        catch (Exception e) { Log?.Report($"社区数据库：{e.Message}"); }
         finally { RequestCollect(); }   // a download's check reads the whole recording
     }
 
@@ -3779,7 +3779,7 @@ public sealed partial class ScsKiller : IScsKiller
                 }
             }
             catch (Exception e) { Log?.Report($"{g.Name}: sharing the recording failed: {e.Message}"); }
-        if (sharing.Waiting is { } wait) Log?.Report($"sharing waits for a recording to be whole (a game still recording?): {wait}");
+        if (sharing.Waiting is { } wait) Log?.Report($"共享在等待录制完成（还有游戏在录制？）：{wait}");
         RequestCollect();
     }
 
@@ -3811,9 +3811,9 @@ public sealed partial class ScsKiller : IScsKiller
             catch (Recordings.IncompleteLayerList e) { sharing.Waiting = e.Message; return; }
             foreach (var (dll, n) in await sharing.SharePacksAsync(packs.Dir, gpu, AppVersion.Current.ToString(), LayerMadeNow))
                 Log?.Report($"{dll}: upscaler pack shared ({n:N0} pipelines)");
-            if (sharing.Problem is { } why) Log?.Report($"sharing upscaler packs: {why}");
+            if (sharing.Problem is { } why) Log?.Report($"共享超分包：{why}");
         }
-        catch (Exception e) { Log?.Report($"sharing upscaler packs failed: {e.Message}"); }
+        catch (Exception e) { Log?.Report($"共享超分包失败：{e.Message}"); }
     }
 
     // the adapter's name only (no LUID, ids or memory size), as sharing sends it
@@ -4194,7 +4194,7 @@ public sealed partial class ScsKiller : IScsKiller
                     if (lowIo) SetThreadPriority(GetCurrentThread(), 0x00010000);   // THREAD_MODE_BACKGROUND_BEGIN: low I/O and memory priority
                     (ours, Thread.CurrentThread.Priority) = (true, ThreadPriority.BelowNormal);
                     foreach (var t in tasks.GetConsumingEnumerable()) TryExecuteTask(t);
-                }) { IsBackground = true, Name = "SCSKiller background index" }.Start();
+                }) { IsBackground = true, Name = "SCSKiller 后台索引" }.Start();
         }
 
         public override int MaximumConcurrencyLevel => threads;
@@ -4342,19 +4342,19 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     // Recorder skip reasons: short and stable, the Settings line counts games by them.
-    public const string SkipAntiCheat = "anti-cheat", SkipForeignDll = "a mod's DLL is in the recorder's place",
-        SkipModNotChainable = "a mod's DLL is in the recorder's place and stops working renamed",
-        SkipVulkanMod = "vkd3d-proton or DXVK runs the game on Vulkan, whose pipelines a DirectX warm doesn't compile",
-        SkipNeedsAdmin = "the game folder needs administrator", SkipNotDx12 = "not DirectX 12", SkipUnsupported = "not supported yet",
-        SkipPackageD3D12 = "a DLL in the game's package folder loads instead of the recorder",
-        SkipShaderMod = "an HDR mod changes every pipeline", SkipStreamline = "DLSS on NVIDIA loads DirectX 12 before the recorder can",
-        SkipManual = "game folder not confirmed", SkipCrashes = "the recorder crashes this game, so it's off for now";
+    public const string SkipAntiCheat = "反作弊组件", SkipForeignDll = "某个 mod 的 DLL 占了录制器的位置",
+        SkipModNotChainable = "本地 mod 的 DLL 占用了录制器的位置，改名后无法工作",
+        SkipVulkanMod = "vkd3d-proton 或 DXVK 让游戏跑在 Vulkan 上，DirectX 预编译无法编译它的管线",
+        SkipNeedsAdmin = "游戏目录需要管理员权限", SkipNotDx12 = "不是 DirectX 12", SkipUnsupported = "暂不支持",
+        SkipPackageD3D12 = "游戏包目录中的某个 DLL 会代替录制器被加载",
+        SkipShaderMod = "HDR mod 会改变所有管线", SkipStreamline = "NVIDIA 上的 DLSS 会在录制器之前加载 DirectX 12",
+        SkipManual = "游戏目录未确认", SkipCrashes = "录制器会让此游戏崩溃，因此暂时关闭";
 
     /// <summary>The skip of a collection's other games (<see cref="Collections"/>): the folder's recorder is the first game's.</summary>
-    public static string SharedRecorder(string first) => $"it shares {first}'s recorder, so turn recording on there";
+    public static string SharedRecorder(string first) => $"它与 {first} 共用录制器，请在那里开启录制";
 
     /// <summary><see cref="Planner.Record"/> for a collection's other game: its recording is switched on the first game's page.</summary>
-    public static string RecordOnFirst(string first) => $"turn on recording on {first}'s page and play this game for about 5 minutes";
+    public static string RecordOnFirst(string first) => $"在 {first} 的页面开启录制，然后游玩此游戏约 5 分钟";
 
     /// <summary><see cref="Planner.Record"/> for a collection's other game while its first game's recorder is in.</summary>
     public static string SharedOn(string first) => $"{first}'s recorder is on: play this game for about 5 minutes";
@@ -4363,11 +4363,11 @@ public sealed partial class ScsKiller : IScsKiller
     /// (<see cref="ReShadeInstall.Blocks"/>), isn't compiled: the case and its fix, one line.</summary>
     public static string ShaderModReason(string mod, LayerBlock why) => why switch
     {
-        LayerBlock.NotBesideExe => $"ReShade must be next to the game's exe to compile through {mod}",
-        LayerBlock.OptiScalerOff => $"Set LoadReshade=true in OptiScaler.ini to compile through {mod}",
-        LayerBlock.OptiScalerIni => $"Fix the section headers in OptiScaler.ini to compile through {mod}",
-        LayerBlock.ProxyLibrary => $"Give the DLL ReShade.ini's ProxyLibrary loads a name the game loads by itself (OptiScaler: winmm.dll), then set EnableProxyLibrary=0, to compile through {mod}",
-        _ => $"Rename ReShade to dxgi.dll next to the exe to compile through {mod}",
+        LayerBlock.NotBesideExe => $"ReShade 必须放在游戏 exe 旁边才能通过 {mod} 编译",
+        LayerBlock.OptiScalerOff => $"请在 OptiScaler.ini 中设置 LoadReshade=true，以通过 {mod} 编译",
+        LayerBlock.OptiScalerIni => $"请修正 OptiScaler.ini 的分节标题，以通过 {mod} 编译",
+        LayerBlock.ProxyLibrary => $"请把 ReShade.ini 的 ProxyLibrary 所加载的 DLL 改成游戏自己会加载的名称（OptiScaler：winmm.dll），再设置 EnableProxyLibrary=0，以通过 {mod} 编译",
+        _ => $"请把 exe 旁的 ReShade 重命名为 dxgi.dll，以通过 {mod} 编译",
     };
 
     static string ShaderModReason(ReShadeInstall r) => ShaderModReason(r.ShaderMod!.Mod!, r.Block);
@@ -4377,10 +4377,10 @@ public sealed partial class ScsKiller : IScsKiller
         GameFiles.DetectAntiCheat(g, quick: true) == AntiCheat.None && ReShade.Detect(g) is { Blocks: true } r ? r : null;
 
     /// <summary>A ReShade add-on that changes the game's pipelines and doesn't block it (<see cref="GameState.ShaderMod"/>).</summary>
-    public static string ShaderModNote(GameState s) => !s.ShaderModLayer ? $"{s.ShaderMod} replaces some shaders: those few pipelines aren't precompiled"
-        : $"{s.ShaderMod} changes this game's pipelines: compiles run through a copy of ReShade and {s.ShaderMod}, and " +
-        (s.ShaderModAsD3D12 ? "with ReShade installed as d3d12.dll, the ones it adds while the game draws are recorded only with Record alongside ReShade on"
-            : "the ones it adds while the game draws are recorded as you play");
+    public static string ShaderModNote(GameState s) => !s.ShaderModLayer ? $"{s.ShaderMod} 替换了部分着色器：那少数几条管线不会被预编译"
+        : $"{s.ShaderMod} 改变了此游戏的管线：编译会经由一份 ReShade 与 {s.ShaderMod} 的副本运行，而且" +
+        (s.ShaderModAsD3D12 ? "当 ReShade 以 d3d12.dll 安装时，它在游戏绘制时新增的管线只有在开启“同时录制 ReShade”时才会被录制"
+            : "它在游戏绘制时新增的管线会在你游玩时被录制");
 
     /// <summary>The game's ReShade layer copied into the warm's work folder (<see cref="Warmer.Layer"/>), with what a warm
     /// through it depends on; null = no add-on that changes pipelines (or anti-cheat: nothing of the install is read,
@@ -4450,9 +4450,9 @@ public sealed partial class ScsKiller : IScsKiller
     /// <summary>The next warm would start Aftermath and the last complete one didn't, or the other way round.</summary>
     bool AftermathChanged(Game g, GameRecord r, EngineInfo? e) => r.WarmedAt != null && (Aftermath(g, r, e) != null) != r.WarmedAftermath;
 
-    internal const string AftermathReason = "the game starts NVIDIA Aftermath with shader debug info, the last compile didn't";
-    public const string AftermathRetryReason = "the next compile starts NVIDIA Aftermath as the game does";
-    public const string AftermathLostReason = "NVIDIA Aftermath didn't help the last compile, the next one runs without it";
+    internal const string AftermathReason = "游戏以带着色器调试信息的方式启动 NVIDIA Aftermath，上次编译没有";
+    public const string AftermathRetryReason = "下次编译会按游戏的方式启动 NVIDIA Aftermath";
+    public const string AftermathLostReason = "NVIDIA Aftermath 对上次编译没有帮助，下次将不带它运行";
 
     /// <summary>What a warm through the game's layer depends on now (<see cref="ReShadeInstall.Fingerprint"/>); null = none.</summary>
     string? LayerNow(Game g) => ScannedAntiCheat(g) == AntiCheat.None || NoAcGate(g) ? ReShade.Detect(g)?.Fingerprint : null;
@@ -4518,7 +4518,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     /// <summary>The page's recorder line for a game the recorder breaks (<see cref="RecorderCrashes"/>), ahead of any
     /// anti-cheat line; null = not one.</summary>
-    public static string? CrashNote(Game g) => RecorderCrashes(g) ? $"Not available: {g.Name} doesn't start with the recorder in its folder." : null;
+    public static string? CrashNote(Game g) => RecorderCrashes(g) ? $"不可用：在目录中放入录制器后，{g.Name} 无法启动。" : null;
 
     /// <summary>The name a mod's d3d12.dll gets when the recorder chains to it (the proxy's scskiller.ini next=). It keeps the
     /// d3d12 prefix for a wrapper that reads its role from its own name by prefix (ReShade's d3d*). <see cref="ChainName11"/>:
@@ -4591,12 +4591,12 @@ public sealed partial class ScsKiller : IScsKiller
         {
             if (!IsOurProxy(Path.Combine(dir, Dll11))) return null;
             var rec = Store.LoadGame(g.Id);
-            if (rec.BeforeAfter is not { Stage: not BeforeAfterStage.Done }) return "its frame times recorder has no before and after recording in progress";
+            if (rec.BeforeAfter is not { Stage: not BeforeAfterStage.Done }) return "其帧时间录制器当前没有进行中的前后对比录制";
             var ini = Path.Combine(dir, "scskiller.ini");
             return File.Exists(ini) && GetIni(Store, dir)?.Tracked is { Length: > 0 } tracked && tracked.Split('|').Contains(Sha256(ini))
                 && File.ReadAllLines(ini).Contains("frames_only=1") ? null : "its scskiller.ini doesn't keep the d3d11.dll to frame times";
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return "its d3d11.dll or scskiller.ini can't be read: " + e.Message; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return "无法读取其 d3d11.dll 或 scskiller.ini：" + e.Message; }
     }
 
     static string ChainOf(string dll) => dll == Dll11 ? ChainName11 : dll == AgsName ? AgsRealName : ChainName;
@@ -4614,10 +4614,10 @@ public sealed partial class ScsKiller : IScsKiller
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return false; }   // put back, as before
     }
 
-    public const string DxvkNote = "DXVK runs this game on Vulkan, so the compile isn't used",
-        DxvkCompiledNote = "DXVK runs this game on Vulkan, and the compile covers it on NVIDIA";
+    public const string DxvkNote = "DXVK 让此游戏跑在 Vulkan 上，编译结果不会被使用",
+        DxvkCompiledNote = "DXVK 让此游戏跑在 Vulkan 上，在 NVIDIA 上编译仍然有效";
 
-    public const string ModRemovedNote = "a mod SCSKiller recorded alongside was removed, so recording is off for this game";
+    public const string ModRemovedNote = "SCSKiller 曾同时录制的某个 mod 已被移除，因此此游戏的录制已关闭";
 
     /// <summary>Our proxy in the folder under any of its names (IOException when one can't be read).</summary>
     public static bool OurProxyIn(string dir) => ProxyNames.Any(n => IsOurProxy(Path.Combine(dir, n)));
@@ -4662,8 +4662,8 @@ public sealed partial class ScsKiller : IScsKiller
     /// under the other names it supports, beside the recorder.</summary>
     public static string NotChainableReason(string? mod, string dll = Dll12) =>
         mod?.StartsWith("OptiScaler", StringComparison.OrdinalIgnoreCase) == true
-            ? $"OptiScaler is installed as {dll}, and renamed it stops working (it picks its role from its file name). To record alongside it, rename it to dxgi.dll (or winmm.dll or version.dll if a dxgi.dll is already there): OptiScaler supports those names"
-            : $"{mod ?? "another mod"} is installed as {dll}, and the recorder can't run alongside it: renamed it stops working";
+            ? $"OptiScaler 以 {dll} 安装，改名后会失效（它按文件名决定自身角色）。要同时录制，请把它重命名为 dxgi.dll（若已有 dxgi.dll，可用 winmm.dll 或 version.dll）：OptiScaler 支持这些名称"
+            : $"{mod ?? "某个 mod"} 以 {dll} 安装，录制器无法与其并存：改名后它会失效";
 
     /// <summary>What the game folder's d3d12.dll that isn't SCSKiller's (or the one chained to it) calls itself, for "Record
     /// alongside &lt;mod&gt;"; null = none there.</summary>
@@ -4720,7 +4720,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var s = Find(gameId);
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         lock (_recorderLock)
         using (Recordings.Lock(RecordingPath(gameId)))   // a migration or import mid-write would put the recording back
         {
@@ -4728,7 +4728,7 @@ public sealed partial class ScsKiller : IScsKiller
                 throw new InvalidOperationException($"{s.Game.Name} is running");
             var files = RecordingFiles(s.Game).Select(f => new FileInfo(f)).Where(f => f.Exists).ToList();
             if (files.Count == 0) return false;
-            AppCacheFiles.DeleteAll(files);   // all or none; throws "files in use by <process>"
+            AppCacheFiles.DeleteAll(files);   // all or none; throws "被 <进程> 使用的文件"
             var rec = Store.LoadGame(gameId);
             // a changed recording: the next compile re-plans, and the scan's planner check runs again without it
             (rec.RecordingImportedAt, rec.RecordingInbox, rec.RecordingIndexHash, rec.RecordedLong) = (DateTimeOffset.Now, null, null, false);
@@ -4803,7 +4803,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     public ManualAdd PreviewManualGame(string exePath)
     {
-        if (Manual == null) throw new InvalidOperationException("adding games isn't available here");
+        if (Manual == null) throw new InvalidOperationException("此处无法添加游戏");
         // a store's game first: its launcher may be what Resolve can't tell apart
         if (Listed(Path.GetFullPath(exePath)) is { } owner) return new(owner.Game, true);
         if (HiddenOwner(Path.GetFullPath(exePath)) is { } hidden) return new(hidden, true);
@@ -4821,7 +4821,7 @@ public sealed partial class ScsKiller : IScsKiller
 
     public ManualAdd AddManualGame(string exePath, string? installDir = null)
     {
-        var manual = Manual ?? throw new InvalidOperationException("adding games isn't available here");
+        var manual = Manual ?? throw new InvalidOperationException("此处无法添加游戏");
         if (Listed(Path.GetFullPath(exePath)) is { } owner) return new(owner.Game, true);
         if (HiddenOwner(Path.GetFullPath(exePath)) is { } hidden) return new(hidden, true);   // its scan would list the store's game, hidden
         // an added game's own exe keeps its entry, a folder's game its exe: resolved again, a patch's bigger exe would make another game
@@ -4876,8 +4876,8 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var manual = Manual;
         var g = Games.FirstOrDefault(s => s.Game.Id == gameId)?.Game ?? manual?.Entries().Select(ManualSource.ToGame).FirstOrDefault(x => x.Id == gameId);
-        if (manual == null || g is not { Store: Core.Store.Manual }) throw new InvalidOperationException("only a game you added can be removed from the library");
-        using var own = CompileLock(gameId) ?? throw new InvalidOperationException($"a compile of {g.Name} is in progress");
+        if (manual == null || g is not { Store: Core.Store.Manual }) throw new InvalidOperationException("只有你手动添加的游戏才能从游戏库移除");
+        using var own = CompileLock(gameId) ?? throw new InvalidOperationException($"{g.Name} 正在编译中");
         lock (_recorderLock)
         {
             var rec = Store.LoadGame(gameId);
@@ -4917,7 +4917,7 @@ public sealed partial class ScsKiller : IScsKiller
         var dropped = new List<QueueItem>();
         lock (_lock)
         {
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {g.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{g.Name} 正在编译中");
             _whenIdle.Remove(gameId);
             _planOnly.Remove(gameId);
             _prompt.Remove(gameId);
@@ -4935,10 +4935,10 @@ public sealed partial class ScsKiller : IScsKiller
     public void HideGame(string gameId)
     {
         var g = Find(gameId).Game;
-        if (g.Store == Core.Store.Manual) throw new InvalidOperationException("a game you added is removed, not hidden");
-        using var own = CompileLock(gameId) ?? throw new InvalidOperationException($"a compile of {g.Name} is in progress");
+        if (g.Store == Core.Store.Manual) throw new InvalidOperationException("你添加的游戏会被移除，而非隐藏");
+        using var own = CompileLock(gameId) ?? throw new InvalidOperationException($"{g.Name} 正在编译中");
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {g.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{g.Name} 正在编译中");
         if (GameRunning(g)) throw new InvalidOperationException($"{g.Name} is running: close the game first");
         // the game page's own Cancel and recorder switch: a hidden game's folder is never written
         if (Store.LoadGame(gameId).BeforeAfter is { Stage: not BeforeAfterStage.Done }) EndBeforeAfter(gameId, compile: false);
@@ -4976,7 +4976,7 @@ public sealed partial class ScsKiller : IScsKiller
                 _hideChanges++;
             }
             Refresh(g);
-            throw new InvalidOperationException($"a compile of {g.Name} is in progress");
+            throw new InvalidOperationException($"{g.Name} 正在编译中");
         }
         Log?.Report($"{g.Name}: hidden from the library");
         foreach (var q in dropped) QueueChanged?.Invoke(q);
@@ -5123,7 +5123,7 @@ public sealed partial class ScsKiller : IScsKiller
         if (dirs.Count == 0) return;
         if (!GameFolderWrite(g)) throw new InvalidOperationException($"{g.Name} is running: close it first to take over the recorder another SCSKiller copy placed");
         if (dirs.FirstOrDefault(Chained) is { } chained)
-            throw new InvalidOperationException($"the recorder another SCSKiller copy placed in {chained} chains to a mod: turn it off there first");
+            throw new InvalidOperationException($"另一个 SCSKiller 副本放入 {chained} 的录制器链接到某个 mod：请先在那里关闭");
         foreach (var dir in dirs)
         {
             StampLedger(dir, replace: !unmarked);
@@ -5131,7 +5131,7 @@ public sealed partial class ScsKiller : IScsKiller
             if (unmarked && (NamedByInstalled(dir) || !PlacedAsRecorded(dir, rec)))
             {
                 Unstamp(dir);
-                throw new InvalidOperationException("it changed while it was checked");
+                throw new InvalidOperationException("检查期间它发生了变更");
             }
             var ini = Path.Combine(dir, "scskiller.ini");
             // tracked as this copy's from here: the entry may still hold the bytes this copy wrote before the other took over
@@ -5152,7 +5152,7 @@ public sealed partial class ScsKiller : IScsKiller
                 Reconcile(s);
     }
 
-    public const string ForeignNote = "placed by another SCSKiller copy, so it may still record. Turn it on here to take it over, then off to remove it";
+    public const string ForeignNote = "由另一个 SCSKiller 副本放入，可能仍在录制。在此开启以接管，再关闭即可移除";
 
     /// <summary>True when the game was re-evaluated; a running game's change waits for it to exit.</summary>
     bool Reconcile(GameState s)
@@ -5202,8 +5202,8 @@ public sealed partial class ScsKiller : IScsKiller
         }
         if (rec.RecorderRollback || _rollbacks.ContainsKey(id))   // a failed install's leftovers go first, before any save, switch On or not
         {
-            var left = GameRunning(g) ? "removed when the game exits"
-                : TakeOut(g, rec, "a failed install's recorder") ? null : "couldn't remove all of it yet: tried again";
+            var left = GameRunning(g) ? "游戏退出时移除"
+                : TakeOut(g, rec, "一次失败安装留下的录制器") ? null : "couldn't remove all of it yet: tried again";
             if (left == null) _recorderNotes.TryRemove(id, out _); else _recorderNotes[id] = left;
             Refresh(g);
             return true;
@@ -5222,14 +5222,14 @@ public sealed partial class ScsKiller : IScsKiller
             _moving[id] = g;   // until the move is done, every check on the old folder (after each lock wait too) takes in the new one
             try
             {
-                if (!Directory.Exists(wasDir)) left = $"moves when {wasDir} can be reached";   // a drive away: nothing there is known gone
-                else if (GameRunning(old)) left = "moves when the game exits";   // also after the record's save waited for its lock
+                if (!Directory.Exists(wasDir)) left = $"当 {wasDir} 可访问时迁移";   // a drive away: nothing there is known gone
+                else if (GameRunning(old)) left = "游戏退出时迁移";   // also after the record's save waited for its lock
                 else
                 {
                     if (s.AntiCheat == AntiCheat.None) MoveSessionFiles(wasDir, dir);   // nothing of ours into an anti-cheat game's folder
                     if (!Uninstall(old, rec))
-                        left = GameRunning(old) ? "moves when the game exits" : IniPending(Store, wasDir) ? $"moves once the scskiller.ini in {wasDir} can be taken out"
-                            : $"couldn't move: the recording in {wasDir} couldn't be imported";
+                        left = GameRunning(old) ? "游戏退出时迁移" : IniPending(Store, wasDir) ? $"moves once the scskiller.ini in {wasDir} can be taken out"
+                            : $"无法迁移：{wasDir} 中的录制无法导入";
                 }
                 if (left == null)
                 {
@@ -5241,7 +5241,7 @@ public sealed partial class ScsKiller : IScsKiller
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                left = "couldn't move: " + e.Message;
+                left = "无法迁移：" + e.Message;
                 RecorderLog($"{g.Name}: recorder {left}");
             }
             finally { _moving.TryRemove(id, out _); }
@@ -5303,7 +5303,7 @@ public sealed partial class ScsKiller : IScsKiller
         {
             if (GameRunning(g))
             {
-                note = update ? "updates when the game exits" : want ? "installs when the game exits" : "removed when the game exits";
+                note = update ? "游戏退出时更新" : want ? "installs when the game exits" : "游戏退出时移除";
                 if (!want && name == Dll11 && Frames11(s.Engine, Vendor.Caps)) Revoke(dir, true, RecorderLog);   // the pair's over: no next launch is admitted
             }
             else
@@ -5313,7 +5313,7 @@ public sealed partial class ScsKiller : IScsKiller
                     {
                         (stamp, gen) = (Stamp(ArmTarget(g).ExePath), RemovalGen(id));
                         if ((rename || stray) && !Uninstall(g, rec))
-                            throw new InvalidOperationException(IniPending(Store, dir) ? "its scskiller.ini can't be taken out yet" : "the recording couldn't be imported");
+                            throw new InvalidOperationException(IniPending(Store, dir) ? "its scskiller.ini can't be taken out yet" : "录制无法导入");
                         Install(g, rec, rename ? target : name);
                         if (!Attest(ArmTarget(g), rec, stamp, gen)) note = ForeignIni(dir, rec);   // Install's full checks were clean
                     }
@@ -5329,7 +5329,7 @@ public sealed partial class ScsKiller : IScsKiller
                 }
                 catch (UnauthorizedAccessException e) when (update)   // the old recorder still works: not a skip
                 {
-                    note = "couldn't update: " + e.Message;
+                    note = "无法更新：" + e.Message;
                     RecorderLog($"{g.Name}: recorder {note}");
                 }
                 catch (UnauthorizedAccessException)
@@ -5343,7 +5343,7 @@ public sealed partial class ScsKiller : IScsKiller
                 }
                 catch (Exception e) when (e is IOException or InvalidOperationException)
                 {
-                    note = (update ? "couldn't update: " : want ? "couldn't install: " : "couldn't remove: ") + e.Message;
+                    note = (update ? "无法更新：" : want ? "couldn't install: " : "couldn't remove: ") + e.Message;
                     RecorderLog($"{g.Name}: recorder {note}");
                 }
         }
@@ -5476,10 +5476,10 @@ public sealed partial class ScsKiller : IScsKiller
     void Install(Game g, GameRecord rec, string name)
     {
         if (!RecorderInstallAllowed(Store.DataDir, AppStore.Moved, Environment.GetEnvironmentVariable("SCSKILLER_TEST_RECORDER")))
-            throw new InvalidOperationException("the data folder is moved (SCSKILLER_DATA_DIR), which SCSKiller's uninstall doesn't know: set SCSKILLER_TEST_RECORDER=1 to install a recorder anyway, and take it out yourself");
+            throw new InvalidOperationException("数据目录已被移动（SCSKILLER_DATA_DIR），SCSKiller 的卸载程序无法识别：设置 SCSKILLER_TEST_RECORDER=1 仍可安装录制器，但需你自行移除");
         RefuseAntiCheat(g, rec);   // fresh, not the cached scan: a patch may have added one
         if (!GameFolderWrite(g)) throw new InvalidOperationException($"{g.Name} is running");
-        var src = ProxySource(name) ?? throw new FileNotFoundException($"the recorder for {name} was not found next to the app");
+        var src = ProxySource(name) ?? throw new FileNotFoundException($"应用旁边找不到 {name} 的录制器");
         var dir = Path.GetDirectoryName(g.ExePath)!;
         var dll = Path.Combine(dir, name);
         var ini = Path.Combine(dir, "scskiller.ini");
@@ -5588,7 +5588,7 @@ public sealed partial class ScsKiller : IScsKiller
             AntiCheatFound(g, antiCheat, installing: rec, unfinished: late);
             throw AntiCheatRefusal(g, antiCheat, late);
         }
-        TakeOut(g, rec, $"the recorder install failed ({failed!.Message})");
+        TakeOut(g, rec, $"录制器安装失败（{failed!.Message}）");
         System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failed);
     }
 
@@ -5817,7 +5817,7 @@ public sealed partial class ScsKiller : IScsKiller
             if (_games.FindIndex(x => x.Game.Id == g.Id) is var i and >= 0 && _games[i].AntiCheat != found) _games[i] = _games[i] with { AntiCheat = found };
         // NoACGate: a game the user allowed the plain recorder in keeps it; the anti-cheat verdict is still recorded and shown
         if (!((installing ?? Store.LoadGame(g.Id)) is { AntiCheatRecordingAllowed: true, Recorder: RecorderOverride.On }))
-            TakeOutNow(g, unfinished ? "its anti-cheat check didn't finish" : $"{found} found", installing);
+            TakeOutNow(g, unfinished ? "其反作弊检查未完成" : $"{found} found", installing);
         EndPair(g, installing);
         if (!changed) return;
         lock (_scanLock)
@@ -6352,7 +6352,7 @@ public sealed partial class ScsKiller : IScsKiller
         var limit = budget ?? UninstallBudget;
         TimeSpan Left() => limit - clock.Elapsed is var left && left > TimeSpan.Zero ? left : TimeSpan.Zero;
         bool Late() => clock.Elapsed > limit;
-        void Log(string line) => RecordersLog(store.DataDir, "uninstall: " + line);
+        void Log(string line) => RecordersLog(store.DataDir, "卸载：" + line);
         var games = Path.Combine(store.DataDir, "games");
         try { MigrateInis(store, Left()); }
         catch (Exception e) { Log($"the records' scskiller.ini entries: {e.Message}"); }
@@ -6371,8 +6371,8 @@ public sealed partial class ScsKiller : IScsKiller
                 HashSet<string>? tree = installDir == null ? [] : InstallExeNames(installDir, Late);
                 bool Runs() => running() is var names && (Running(exe, installDir, names) || moveTo != null && Running(moveTo, installDir, names)
                                                           || tree == null || tree.Overlaps(names));
-                if (clock.Elapsed > limit) Log($"out of time: recorder left in {dir}");
-                else if (Foreign(dir)) Log($"recorder left in {dir}: another SCSKiller copy's");
+                if (clock.Elapsed > limit) Log($"超时：录制器留在 {dir}");
+                else if (Foreign(dir)) Log($"{dir} 中的录制器已保留：属于另一个 SCSKiller 副本");
                 else if (tree == null) Log($"{installDir} not read whole in time: recorder left in {dir}");
                 else if (Runs()) Log($"{exe} is running: recorder left in {dir}");
                 else
@@ -6383,10 +6383,10 @@ public sealed partial class ScsKiller : IScsKiller
                                  .Distinct(StringComparer.OrdinalIgnoreCase).ToList())
                         try
                         {
-                            if (Foreign(d)) { Log($"recorder left in {d}: another SCSKiller copy's"); continue; }   // a move's other end taken over since
+                            if (Foreign(d)) { Log($"{d} 中的录制器已保留：属于另一个 SCSKiller 副本"); continue; }   // a move's other end taken over since
                             if (RemoveRecorder(d, rec, store, d, Log, installDir, Left()) && d.Equals(dir, StringComparison.OrdinalIgnoreCase)) removed.Add((id, d, Runs));
                             if (Directory.Exists(d))
-                                Log(rec.RecorderFiles.Count == 0 && !IniPending(store, d) ? $"recorder removed from {d}" : $"recorder removed from {d} but for files that can't be taken out yet");
+                                Log(rec.RecorderFiles.Count == 0 && !IniPending(store, d) ? $"已从 {d} 移除录制器" : $"recorder removed from {d} but for files that can't be taken out yet");
                         }
                         catch (Exception e) { Log($"{d}: {e.Message}"); }   // the next folder is tried all the same
                     store.SaveGame(id, rec, Left());
@@ -6396,10 +6396,10 @@ public sealed partial class ScsKiller : IScsKiller
         foreach (var (id, dir, runs) in removed)
             try
             {
-                if (clock.Elapsed > limit) Log($"out of time: the recorder's data files left in {dir}");
+                if (clock.Elapsed > limit) Log($"超时：录制器的数据文件留在 {dir}");
                 else if (store.LoadGame(id) is var held && !RemoveRecorderData(dir, Path.Combine(store.GameDir(id), "recording.db"), held.RecordingInbox, runs,
                              held.RecorderRollback || IniPending(store, dir), Left()))
-                    Log($"the game started: the recorder's data files left in {dir}");
+                    Log($"游戏已启动：录制器的数据文件留在 {dir}");
             }
             catch (Exception e) { Log($"{dir}: {e.Message}"); }
     }
@@ -6625,7 +6625,7 @@ public sealed partial class ScsKiller : IScsKiller
     public void EnqueueWhenIdle(string gameId) => Add(gameId, whenIdle: true);
 
     /// <summary>A waiting "when idle" item's <see cref="QueueItem.Note"/>: it doesn't run with the queue.</summary>
-    public const string WhenIdleNote = "starts when the PC is idle";
+    public const string WhenIdleNote = "在电脑空闲时启动";
 
     static bool Finished(QueueStage s) => s is QueueStage.Done or QueueStage.Failed or QueueStage.Stopped;
 
@@ -6782,7 +6782,7 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     /// <summary>Graceful stop of the running item (Stopped, resumable), and the queue stops: the waiting items wait for
-    /// the next StartQueue. "When idle" items still run by themselves.</summary>
+    /// the next StartQueue. "空闲时编译" items still run by themselves.</summary>
     public void StopQueue()
     {
         lock (_lock) _running = false;
@@ -6863,7 +6863,7 @@ public sealed partial class ScsKiller : IScsKiller
             }
             if (stopped != null) QueueChanged?.Invoke(stopped);   // QueueRunning changed
             if (exit) break;
-            if (id == null) { await Task.Delay(Poll); continue; }   // only "when idle" items left and the user is here
+            if (id == null) { await Task.Delay(Poll); continue; }   // only "空闲时" items left and the user is here
             foreach (var (other, indexing) in _recorderIndexes) ParkIndex(other, indexing);   // its compile indexes it, the others wait for the queue
             while (Volatile.Read(ref _readingIndexes) > 0 && !ct.IsCancellationRequested) await Task.Delay(50);   // a read in progress stops at its next check
             try
@@ -6900,7 +6900,7 @@ public sealed partial class ScsKiller : IScsKiller
     }
 
     /// <summary>A waiting item's <see cref="QueueItem.Note"/> while another process compiles the game.</summary>
-    public const string AnotherCompileNote = "waits for another SCSKiller compile of this game";
+    public const string AnotherCompileNote = "等待此游戏的另一次 SCSKiller 编译";
 
     /// <summary>games\&lt;id&gt;\compile.lock, open with no sharing for the whole item; null while another process has it.
     /// A handle, not <see cref="AppStore.PathGate"/>: it is released on another thread after the item's awaits.</summary>
@@ -6939,11 +6939,11 @@ public sealed partial class ScsKiller : IScsKiller
             var line = $"compile {name}: {verb} {(verb == "done" ? "in" : "after")} {Took(ended != null ? took : warmClock.Elapsed)}";
             if (ended is { } r)   // before the end, Done doesn't cover every crash-skipped key
             {
-                line += $", {Math.Max(0, r.Done - r.Failed - r.DriverSkipped - (r.Outcome == WarmOutcome.Completed ? crashed : 0)):N0} of {r.Total:N0} created, {r.Failed - unbuilt:N0} failed";
-                if (r.Skipped > 0) line += $", {r.Skipped:N0} skipped (a shader not in this install)";
-                if (crashed > 0) line += $", {crashed:N0} skipped (crash the GPU driver)";
-                if (r.DriverSkipped > 0) line += $", {r.DriverSkipped:N0} skipped for this compile (the GPU driver crashed or hung on them or on what they build on)";
-                if (unbuilt > 0) line += $", {unbuilt:N0} skipped (SCSKiller can't build them yet)";
+                line += $"，已创建 {Math.Max(0, r.Done - r.Failed - r.DriverSkipped - (r.Outcome == WarmOutcome.Completed ? crashed : 0)):N0}/{r.Total:N0}，失败 {r.Failed - unbuilt:N0}";
+                if (r.Skipped > 0) line += $"，跳过 {r.Skipped:N0}（着色器不在当前安装中）";
+                if (crashed > 0) line += $"，跳过 {crashed:N0}（会导致显卡驱动崩溃）";
+                if (r.DriverSkipped > 0) line += $"，本次跳过 {r.DriverSkipped:N0}（显卡驱动在它们或其依赖项上崩溃或卡死）";
+                if (unbuilt > 0) line += $"，跳过 {unbuilt:N0}（SCSKiller 暂时无法构建）";
             }
             if (rtSkipped) line += ". " + RtSkippedNote;
             warmClock = null;
@@ -6964,7 +6964,7 @@ public sealed partial class ScsKiller : IScsKiller
             // a warm that stopped moving: for how long (the estimate would be a guess)
             var note = paused ? _pauseWhy : s is QueueStage.Done or QueueStage.Stopped && progress is { } p ? WarmCounts(p.Failed, p.Skipped, crashed, p.DriverSkipped, unbuilt)
                 : s == QueueStage.Warming && advanced.Elapsed > StallAfter ? StalledNote(advanced.Elapsed)
-                : s == QueueStage.Warming ? progress?.Note : null;   // e.g. "retrying ray tracing with fewer threads (8)"
+                : s == QueueStage.Warming ? progress?.Note : null;   // e.g. "以更少线程（8）重试光追"
             Set(new QueueItem(id, paused ? QueueStage.Paused : s, progress, error, note));
             if (s == QueueStage.Failed) NoteFailed(id, compiling);
         }
@@ -6973,11 +6973,11 @@ public sealed partial class ScsKiller : IScsKiller
         // the state may be of an older build than the one installed now: its engine and planner check, cached unless the exe or build changed
         var now = installed == null ? null : Evaluated(installed, Store.LoadGame(id), false, out _);
         // a game needing a recording only for its ray tracing still compiles the rest (a partial compile); the planner's own verdict first
-        string? NotReady() => state == null || installed == null ? "unknown game (scan first)"
-            : now?.Engine == null || now.Check.Readiness != Readiness.Ready ? $"not ready: {now?.Check.Reason}"
-            : BlockingMod(installed) is { } mod ? $"not ready: {ShaderModReason(mod)}"
-            : AppCacheFiles.MissingTarget(AppCache) is { } link ? $"not ready: {LinkTargetMissing(link)}"
-            : state.Status is GameStatus.Unsupported || state.Status == GameStatus.NeedsRecording && !NeedsRtRecording(state) ? $"not ready: {state.StatusReason}"
+        string? NotReady() => state == null || installed == null ? "未知游戏（请先扫描）"
+            : now?.Engine == null || now.Check.Readiness != Readiness.Ready ? $"未就绪：{now?.Check.Reason}"
+            : BlockingMod(installed) is { } mod ? $"未就绪：{ShaderModReason(mod)}"
+            : AppCacheFiles.MissingTarget(AppCache) is { } link ? $"未就绪：{LinkTargetMissing(link)}"
+            : state.Status is GameStatus.Unsupported || state.Status == GameStatus.NeedsRecording && !NeedsRtRecording(state) ? $"未就绪：{state.StatusReason}"
             : null;
         if (NotReady() != null && now?.Check.Readiness == Readiness.Ready)   // the state may be older than the check (another process imported a recording)
         {
@@ -7144,8 +7144,8 @@ public sealed partial class ScsKiller : IScsKiller
             }
             if (current || planOnly)
             {
-                Set(new QueueItem(id, QueueStage.Done, null, null, current ? "already compiled: the new plan adds nothing"
-                    : rec.WarmedAt != null && StaleReason(game, rec, engine) is { } why ? why : "plan built"));
+                Set(new QueueItem(id, QueueStage.Done, null, null, current ? "已编译：新计划没有新增内容"
+                    : rec.WarmedAt != null && StaleReason(game, rec, engine) is { } why ? why : "计划已生成"));
                 return;
             }
             if (whenIdle && RulesGrew(game, rec, engine) is { } grew)
@@ -7261,7 +7261,7 @@ public sealed partial class ScsKiller : IScsKiller
                     Store.SaveGame(id, rec);
                 }
                 // now, not before the waits (for the game, idle, a pause): ReShade or its add-ons may have changed meanwhile
-                if (BlockingMod(game) is { } mod) throw new NotReadyException($"not ready: {ShaderModReason(mod)}");
+                if (BlockingMod(game) is { } mod) throw new NotReadyException($"未就绪：{ShaderModReason(mod)}");
                 // queued before the pair armed, or by another process: the before run must find the cache cold
                 if (PairHoldsCache(id, compiling: true) is { } pair)
                 {
@@ -7516,7 +7516,7 @@ public sealed partial class ScsKiller : IScsKiller
                 if (!foldRan) Fold();
                 // after the fold: while work\ is there, D3DSCacheGone doesn't judge the game's folder
                 try { if (Directory.Exists(work)) Directory.Delete(work, true); }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"could not delete {work}: {e.Message}"); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"无法删除 {work}：{e.Message}"); }
             }
             finally
             {
@@ -7636,7 +7636,7 @@ public sealed partial class ScsKiller : IScsKiller
             {
                 DropOtherCompilers(waiting, d);
                 var timer = Stopwatch.StartNew();
-                var why = "the game's own folder isn't found";
+                var why = "找不到游戏自己的目录";
                 if ((GameD3DSCache(g) ?? NewGameD3DSCache(g)) is { } to && MergeStamped(d, to, g, stop, r => why = r))
                 {
                     Directory.Delete(d, true);
@@ -7710,8 +7710,8 @@ public sealed partial class ScsKiller : IScsKiller
     bool D3DSCachePending(string gameId, GameRecord r) => OperatingSystem.IsWindows()
         && (r.D3DSCacheSince != null && !Warming(gameId) || Holds(Path.Combine(Store.GameDir(gameId), D3DSCacheWaiting), "*", dirs: true) == true);
 
-    public const string D3DSCachePendingReason = "the compiled pipelines go into the game's cache when the game exits or SCSKiller starts";
-    public const string D3DSCacheDamagedReason = "the compile's Windows shader cache was damaged, so compile it again";
+    public const string D3DSCachePendingReason = "编译好的管线会在游戏退出或 SCSKiller 启动时写入游戏缓存";
+    public const string D3DSCacheDamagedReason = "本次编译的 Windows 着色器缓存已损坏，请重新编译";
 
     /// <summary>The status reasons the game page shows as Not reached yet.</summary>
     public static bool NotReached(string? reason) => reason is D3DSCachePendingReason or D3DSCacheDamagedReason;
@@ -7770,13 +7770,13 @@ public sealed partial class ScsKiller : IScsKiller
     bool? DeliveryFitsOf(Game g) => OperatingSystem.IsWindows() && D3DSCache.Delivered(g.ExePath) is { } d ? D3DSCache.Fits(d, OwnCompiler()) : null;
 
     /// <summary>The library's and game page's tag of a game with delivered shaders; null = none.</summary>
-    public static string? DeliveryChip(GameState s) => s.DeliveredShaders is { } b ? $"Advanced Shader Delivery {Format.Bytes(b)}" : null;
+    public static string? DeliveryChip(GameState s) => s.DeliveredShaders is { } b ? $"高级着色器交付（ASD）{Format.Bytes(b)}" : null;
 
-    public const string DeliveryTip = "The size of the compiled shaders Windows delivered for this game";
+    public const string DeliveryTip = "Windows 为此游戏交付的已编译着色器大小";
 
     /// <summary>The game page's and the command line's line under the status, when a delivered db fits this driver; null = none.</summary>
     public static string? DeliveryLine(GameState s) => s is { DeliveredShaders: not null, DeliveryFits: true }
-        ? "Windows already delivered this game's compiled shaders for your graphics card, so a compile doesn't add much." : null;
+        ? "Windows 已为你的显卡交付此游戏的已编译着色器，再编译收益不大。" : null;
 
     /// <summary>The game's own D3DSCache folder and the exe path its dbs name, remembered: emptied by Clear cache, the
     /// runtime opens the same folder again (its name comes from the exe path), so the compile's dbs go back there.</summary>
@@ -7904,14 +7904,14 @@ public sealed partial class ScsKiller : IScsKiller
             File.Copy(from, kept, true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return ""; }
-        return $" (log: {kept})";
+        return $"（日志：{kept}）";
     }
 
     /// <summary>A completed warm's: an earlier failure's warm-failed.log no longer describes the game.</summary>
     void DropFailedLog(string id)
     {
         try { File.Delete(Path.Combine(Store.GameDir(id), "warm-failed.log")); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"removing the last failed warm's log failed: {e.Message}"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"删除上次失败预编译的日志失败：{e.Message}"); }
     }
 
     /// <summary>With Settings.ShareDiagnostics on, a compile the driver rejected pipelines in, whose warm caught an exception
@@ -7942,7 +7942,7 @@ public sealed partial class ScsKiller : IScsKiller
             var logs = Directory.EnumerateFiles(work, "scskiller.log", SearchOption.AllDirectories).OrderBy(File.GetLastWriteTimeUtc).ToList();
             if (logs.Count > 0) File.WriteAllLines(kept, logs.SelectMany(File.ReadLines));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"keeping the warm's rejects log failed: {e.Message}"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"保存预编译的拒绝日志失败：{e.Message}"); }
     }
 
     string AllFailedReason(string work, long failed) => AllFailedReason(WorkLogs(work), failed);
@@ -7974,26 +7974,26 @@ public sealed partial class ScsKiller : IScsKiller
         var reasons = log.Select(l => (d3d12: FailTally.Match(l), d3d11: FailTally11.Match(l)))
             .Where(m => m.d3d12.Success || m.d3d11.Success)
             .Select(m => m.d3d12 is { Success: true } t
-                ? (kind: t.Groups[2].Value.Contains("root signature creation failed") ? 0 : t.Groups[2].Value.Contains("hr=0x") ? 1 : 2, n: long.Parse(t.Groups[1].Value))
+                ? (kind: t.Groups[2].Value.Contains("根签名创建失败") ? 0 : t.Groups[2].Value.Contains("hr=0x") ? 1 : 2, n: long.Parse(t.Groups[1].Value))
                 : (kind: DriverFailed11(m.d3d11) ? 1 : 3, n: long.Parse(m.d3d11.Groups[3].Value)))
             .GroupBy(t => t.kind, (kind, ts) => (kind, n: ts.Sum(t => t.n))).ToList();
-        var all = $"all {failed:N0} pipelines failed";
+        var all = $"全部 {failed:N0} 条管线失败";
         if (reasons.Count == 0) return all;
         var top = reasons.MaxBy(r => r.n).kind;
         return reasons.Count == 1
             ? top switch
             {
-                0 => $"the driver refused the root signature of all {failed:N0} pipelines",
-                1 => $"the driver rejected all {failed:N0} pipelines",
-                3 => $"SCSKiller can't build any of the {failed:N0} pipelines yet",
-                _ => $"SCSKiller couldn't read any of the {failed:N0} pipelines",
+                0 => $"驱动拒绝了全部 {failed:N0} 条管线的根签名",
+                1 => $"驱动拒绝了全部 {failed:N0} 条管线",
+                3 => $"SCSKiller 暂时无法构建这 {failed:N0} 条管线中的任何一条",
+                _ => $"SCSKiller 无法读取这 {failed:N0} 条管线中的任何一条",
             }
             : all + top switch
             {
-                0 => ", most because the driver refused their root signature",
-                1 => ", most rejected by the driver",
-                3 => ", most because SCSKiller can't build them yet",
-                _ => ", most because SCSKiller couldn't read them",
+                0 => "，多数是因为驱动拒绝了它们的根签名",
+                1 => "，多数被驱动拒绝",
+                3 => "，多数是因为 SCSKiller 暂时无法构建",
+                _ => "，多数是因为 SCSKiller 无法读取",
             };
     }
 
@@ -8012,7 +8012,7 @@ public sealed partial class ScsKiller : IScsKiller
             using var r = File.OpenRead(all);
             AppStore.WriteAtomic(Path.Combine(Store.GameDir(id), LastWarmLog), Bounded(r, LastWarmLogBytes));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"keeping the last warm's log failed: {e.Message}"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log?.Report($"保存上次预编译的日志失败：{e.Message}"); }
     }
 
     /// <summary>The folders <see cref="FreshWork"/> makes: work, or work-&lt;n&gt; when an earlier one can't be emptied.</summary>
@@ -8036,12 +8036,12 @@ public sealed partial class ScsKiller : IScsKiller
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
                     if (!retried) { Thread.Sleep(500); continue; }
-                    log?.Report($"could not delete {dir}: {e.Message}");
+                    log?.Report($"无法删除 {dir}：{e.Message}");
                     last = e;
                     break;
                 }
         }
-        return fresh ?? throw new IOException($"no work folder can be made in {gameDir}", last);
+        return fresh ?? throw new IOException($"无法在 {gameDir} 中创建工作目录", last);
     }
 
     /// <summary>work or work-&lt;n&gt;: a folder <see cref="FreshWork"/> makes.</summary>
@@ -8077,11 +8077,11 @@ public sealed partial class ScsKiller : IScsKiller
 
     string? FullReplayReason(Game g, GameRecord r, EngineInfo? e, GpuSnapshot snap)
     {
-        if (ColdWarm(r, snap.Id)) return "nothing compiled on this driver is on record";
+        if (ColdWarm(r, snap.Id)) return "此驱动上没有任何编译记录";
         if (WarmChanged(g, r, e, snap) is { } changed) return changed;
-        if (r.PlanPerStage != r.WarmedPerStage) return "the plan settings changed";
-        if (r.Careful || r.WarmedCareful) return "a careful compile";
-        if (IsPartlyWarmed(r.FirstLaunch) || IsUnreached(r)) return "the game's launch after the last compile still compiled";
+        if (r.PlanPerStage != r.WarmedPerStage) return "计划设置已变更";
+        if (r.Careful || r.WarmedCareful) return "一次谨慎编译";
+        if (IsPartlyWarmed(r.FirstLaunch) || IsUnreached(r)) return "上次编译后游戏首次启动时仍在编译";
         if (CacheFilesChanged(g.Id, r) is { } changedFiles) return changedFiles;
         return null;
     }
@@ -8094,19 +8094,19 @@ public sealed partial class ScsKiller : IScsKiller
     {
         if (D3D12Kept(r) is { } st)
         {
-            if (D3DSCacheTrimmed(gameId, r) != null) return "some of the game's D3DSCache dbs are gone or hold less";
+            if (D3DSCacheTrimmed(gameId, r) != null) return "游戏的部分 D3DSCache 数据库已丢失或内容变少";
             if (!DxCacheCounts(r, st)) return null;
         }
         if (AppCache is not { } cache || r.WarmedKeys is not { Count: > 0 } keys || r.WarmedFiles is not { Count: > 0 } files || r.WarmedFileBytes is null)
-            return "the game's cache files aren't known";
+            return "游戏的缓存文件未知";
         var now = cache.FilesOf(keys).Where(f => files.Contains(f.Name)).ToList();
         var kept = AppCache is AmdAppCache ? Keeping(gameId) : null;
         if (files.Any(n => !now.Any(f => f.Name.Equals(n, StringComparison.OrdinalIgnoreCase)) && !KeptSame(kept, r, n)))
-            return "some of the game's cache files are gone";
+            return "游戏的部分缓存文件已丢失";
         bool MadeAgain(FileInfo f) => r.WarmedFileIds?.GetValueOrDefault(f.Name) is { } was ? AmdKept.Id(f.FullName) != was   // unreadable: not shown to be the same
             : r.WarmedAt is { } at && f.CreationTimeUtc > at.UtcDateTime;
         if (now.Any(f => MadeAgain(f) || Shrunk(f, r)))
-            return "some of the game's cache files were made again since the last compile";
+            return "上次编译后游戏的部分缓存文件被重新创建";
         return null;
     }
 
@@ -8143,7 +8143,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var s = Find(gameId);
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         var rec = Store.LoadGame(gameId);
         if (rec.RayTracing == on) return;
         rec.RayTracing = on;
@@ -8167,7 +8167,7 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var s = Find(gameId);
         lock (_lock)
-            if (_current == gameId) throw new InvalidOperationException($"a compile of {s.Game.Name} is in progress");
+            if (_current == gameId) throw new InvalidOperationException($"{s.Game.Name} 正在编译中");
         var rec = Store.LoadGame(gameId);
         if ((rec.Maximum == true) == on) return;
         (rec.Maximum, rec.ResumeAt) = (on ? true : null, 0);   // a stopped warm's resume point counts the other plan's items
@@ -8187,7 +8187,7 @@ public sealed partial class ScsKiller : IScsKiller
         var s = Find(gameId);
         var vendor = PackGpu(Vendor.Vendor);
         if (CompatReport.WhyNot(s, vendor) is { } why) throw new InvalidOperationException(why);
-        if (Sharing is not { } sharing) throw new InvalidOperationException("reports aren't sent from here");
+        if (Sharing is not { } sharing) throw new InvalidOperationException("此处不发送报告");
         var key = CompatReport.BuildKey(s.Game);
         var report = new CompatReport(s.Game.Id, key, choice, frameGen, upscaler, mods, CpuModel(), GpuModel(), vendor!, DriverVersion(), CompatReport.ThisWindows,
             AppVersion.Current.ToString(), CompatReport.CompileOf(s, Settings.MaximumPlans));
@@ -8247,7 +8247,7 @@ public sealed partial class ScsKiller : IScsKiller
             bool background;
             lock (_lock) background = Background || _whenIdle.Contains(id);   // a Compile click during the warm: no longer paused for games
             var playing = background && Settings.PauseWhileGaming ? GameNameIn(running) : null;
-            _pauseWhy = playing != null ? $"paused while {playing} is running" : WaitsForIdle(id) ? "paused until the PC is idle" : null;
+            _pauseWhy = playing != null ? $"{playing} 运行期间暂停" : WaitsForIdle(id) ? "paused until the PC is idle" : null;
             var want = _go.IsSet ? _pauseWhy : _pauseWhy ?? "paused";
             if (want == applied) continue;
             applied = want;
@@ -8264,8 +8264,8 @@ public sealed partial class ScsKiller : IScsKiller
     {
         var all = Processes(true);
         var held = all.Where(p => p.Exe.Equals(exe, StringComparison.OrdinalIgnoreCase) && !OurCopy(p, all)).Take(3)
-            .Select(p => ProcessPath(p.Pid) is { } path ? $"process {p.Pid}: {path}" : $"process {p.Pid}").ToList();
-        return $"stopped while {name} is running: continues when it exits" + (held.Count > 0 ? $" ({string.Join(", ", held)})" : "");
+            .Select(p => ProcessPath(p.Pid) is { } path ? $"进程 {p.Pid}：{path}" : $"process {p.Pid}").ToList();
+        return $"{name} 运行期间停止：其退出后继续" + (held.Count > 0 ? $" ({string.Join(", ", held)})" : "");
     }
 
     /// <summary>Waits while a process named like the warm's exe runs (see RunItem), and until it has stayed closed for
@@ -8290,7 +8290,7 @@ public sealed partial class ScsKiller : IScsKiller
             {
                 if (runs != shown)
                 {
-                    _pauseWhy = (shown = runs) ? StoppedFor(name, exe) : $"continues {GameClosedFor.TotalMinutes:0} min after {name} closes";
+                    _pauseWhy = (shown = runs) ? StoppedFor(name, exe) : $"{name} 关闭后继续 {GameClosedFor.TotalMinutes:0} 分钟";
                     SetCurrent(QueueStage.Paused, _pauseWhy);
                 }
                 if (runs && learn != null && (sampled == null || sampled.Elapsed >= AttributionInterval)) { sampled = Stopwatch.StartNew(); learn(); }
@@ -8399,14 +8399,14 @@ public sealed partial class ScsKiller : IScsKiller
         while (!ct.IsCancellationRequested)
         {
             try { PollGames(); }
-            catch (Exception e) { Log?.Report($"watching games: {e.Message}"); }
+            catch (Exception e) { Log?.Report($"监视游戏时出错：{e.Message}"); }
             // the whole pass off the loop: a slow install never holds the polls back. Also with Settings.ScanAtStart off: it is
             // what takes the recorder out of a game an update gave anti-cheat while the app runs or was closed
             if (check is not { IsCompleted: false } && (recordersChecked?.Elapsed >= RecorderCheckInterval || recordersChecked == null && Volatile.Read(ref _listed) > 0))
             {
                 recordersChecked = Stopwatch.StartNew();
                 check = Task.Run(WalkRecorderGames);
-                _ = check.ContinueWith(t => Log?.Report($"checking recorder games for anti-cheat: {t.Exception!.InnerException?.Message}"), TaskContinuationOptions.OnlyOnFaulted);
+                _ = check.ContinueWith(t => Log?.Report($"检查录制器所在游戏的反作弊时出错：{t.Exception!.InnerException?.Message}"), TaskContinuationOptions.OnlyOnFaulted);
             }
             if (gpuChecked.Elapsed >= GpuCheckInterval)
             {
@@ -8454,7 +8454,7 @@ public sealed partial class ScsKiller : IScsKiller
             catch (Exception e) { Log?.Report($"{what}: {e.Message}"); }
         });
         RetryIndexes();
-        var removals = new List<Task> { Off(CleanOfflineSessions, "cleaning up after offline sessions") };
+        var removals = new List<Task> { Off(CleanOfflineSessions, "正在清理离线会话残留") };
         var states = Games;
         var vac = states.Where(s => VacCheck(s.Game)).Select(s => s.Game.Id).ToHashSet();   // Steam's verdict now, not the last evaluation's
         bool compiling;
@@ -8507,7 +8507,7 @@ public sealed partial class ScsKiller : IScsKiller
             _removalTried[s.Game.Id] = Stopwatch.StartNew();
             removals.Add(Off(() =>
             {
-                TakeOutNow(s.Game, s.AntiCheat != AntiCheat.None ? $"{s.AntiCheat} found" : "VAC found");
+                TakeOutNow(s.Game, s.AntiCheat != AntiCheat.None ? $"{s.AntiCheat} found" : "检测到 VAC");
                 Refresh(s.Game);
             }, $"{s.Game.Name}: removing the recorder failed"));
         }
@@ -8645,7 +8645,7 @@ public sealed partial class ScsKiller : IScsKiller
         {
             var error = Marshal.GetLastWin32Error();
             if (error is 2 or 3) return;   // not there
-            throw new IOException($"couldn't open the {LedgerStamp} in {dir}", Marshal.GetHRForLastWin32Error());
+            throw new IOException($"无法打开 {dir} 中的 {LedgerStamp}", Marshal.GetHRForLastWin32Error());
         }
         var length = RandomAccess.GetLength(h);
         if (length > 1 << 17) return;   // longer than any path: not this copy's
@@ -8657,7 +8657,7 @@ public sealed partial class ScsKiller : IScsKiller
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return; }
         byte delete = 1;
         if (!SetFileInformationByHandle(h, 4 /* FileDispositionInfo */, ref delete, 1))
-            throw new IOException($"couldn't delete the {LedgerStamp} in {dir}", Marshal.GetHRForLastWin32Error());
+            throw new IOException($"无法删除 {dir} 中的 {LedgerStamp}", Marshal.GetHRForLastWin32Error());
     }
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -8875,7 +8875,7 @@ public sealed partial class ScsKiller : IScsKiller
         if (Collections.RecordedBy(g.Id) != null) return false;
         if (VacCheck(g))
         {
-            TakeOutNow(g, "VAC found");   // out, the mod put back; a failure is tried again at each pass
+            TakeOutNow(g, "检测到 VAC");   // out, the mod put back; a failure is tried again at each pass
             return false;
         }
         if (!Foreign(g) && FramesOnlyRefusal(g) is { } refusal)   // another copy's pair recorder is that copy's to end
@@ -8892,10 +8892,10 @@ public sealed partial class ScsKiller : IScsKiller
         }
         // a removal pending for any game of the collection holds the shared recorder's stamp back too
         if (RemovalGen(g.Id) != gen || rec.RecorderRollback || (Collections.Member(g.Id) is { } col ? col.All.Select(e => e.Id) : [g.Id]).Any(_rollbacks.ContainsKey))
-            return Unstamped("a removal came since its check began, or one waits");
+            return Unstamped("检查开始后又出现了移除请求，或已有请求在等待");
         if (CollectionArmExe(g) is { } target ? !target.Equals(g.ExePath, StringComparison.OrdinalIgnoreCase)
             : rec.RunsExe is { } runs && !runs.Equals(g.ExePath, StringComparison.OrdinalIgnoreCase))
-            return Unstamped($"the game runs another exe than {Path.GetFileName(g.ExePath)}");
+            return Unstamped($"游戏运行的 exe 不是 {Path.GetFileName(g.ExePath)}");
         var followedFrom = rec.RunsExeWas is { } old && !old.Equals(g.ExePath, StringComparison.OrdinalIgnoreCase)
             && !Games.Any(s => s.Game.Id != g.Id && s.Game.ExePath.Equals(old, StringComparison.OrdinalIgnoreCase)) ? old : null;
         var dir = Path.GetDirectoryName(g.ExePath)!;
@@ -8908,12 +8908,12 @@ public sealed partial class ScsKiller : IScsKiller
         {
             unsigned = stamp == null ? $"{Path.GetFileName(g.ExePath)} couldn't be read when its check began"
                 : Unconfirmed(g) || g.Store == Core.Store.Manual && Manual?.ConfirmedNow(g) != true ? SkipManual
-                : !OurProxyIn(dir) ? $"SCSKiller's proxy isn't in {dir}"
-                : Foreign(g) ? "another SCSKiller copy placed it"
+                : !OurProxyIn(dir) ? $"SCSKiller 的代理不在 {dir}"
+                : Foreign(g) ? "由另一个 SCSKiller 副本放入"
                 : BlockingMod(g) != null ? SkipShaderMod : null;
             if (unsigned == null) signed = Signed(g.ExePath, RootValue(g), stamp!, SignedLines(g, rec));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { unsigned = $"its stamp couldn't be signed: {e.Message}"; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { unsigned = $"其标记无法签名：{e.Message}"; }
         if (Collections.Member(g.Id) != null) MarkCollectionSwitch(g);   // before the stamp names this exe
         UpdateRecorderIni(g, rec, signed ?? "", () => RemovalGen(g.Id) == gen);
         if (RemovalGen(g.Id) != gen)   // a finding came while the ini was written: it goes again before the lock is let go
@@ -8921,18 +8921,18 @@ public sealed partial class ScsKiller : IScsKiller
             StripIni(dir, Store, rec.RecorderChained?.Name, g.InstallDir, g.Name, RecorderLog);
             try { Store.SaveGame(g.Id, rec); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { RecorderLog($"{g.Name}: couldn't save the recorder's record: {e.Message}"); }
-            return Unstamped("a removal came while its stamp was written");
+            return Unstamped("写入标记期间出现了移除请求");
         }
-        if (signed == null) return Unstamped(unsigned ?? "its stamp couldn't be signed");
+        if (signed == null) return Unstamped(unsigned ?? "其标记无法签名");
         if (IniStamp(g.ExePath) != signed)
-            return Unstamped($"its scskiller.ini in {dir} couldn't be written (one that isn't SCSKiller's is left as it is)");
+            return Unstamped($"{dir} 中的 scskiller.ini 无法写入（不属于 SCSKiller 的文件会保持原样）");
         IniState owner;
         try { owner = JudgeIni(dir, Store, rec.RecorderChained?.Name, g.InstallDir).State; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { owner = IniState.Unknown; RecorderLog($"{g.Name}: whose the scskiller.ini in {dir} is couldn't be recorded: {e.Message}"); }
         if (owner != IniState.Ours)   // ours by its stamp, not by ownership (another encoding of it): refused while it's there
         {
             Revoke(dir, true, RecorderLog);
-            return Unstamped($"the scskiller.ini in {dir} isn't SCSKiller's (left as it is)");
+            return Unstamped($"{dir} 中的 scskiller.ini 不属于 SCSKiller（保持原样）");
         }
         _unstamped.TryRemove(g.Id, out _);
         Revoke(dir, false, RecorderLog);
@@ -8964,7 +8964,7 @@ public sealed partial class ScsKiller : IScsKiller
         return state == IniState.NotOurs ? NoteForeignIni : null;
     }
 
-    internal const string NoteForeignIni = "records nothing: the scskiller.ini in its folder isn't SCSKiller's, so it's left as it is";
+    internal const string NoteForeignIni = "不记录任何内容：其目录中的 scskiller.ini 不属于 SCSKiller，因此保持原样";
 
     readonly ConcurrentDictionary<string, string> _unstamped = new();   // game id -> why it was last logged unstamped
 
@@ -9038,14 +9038,14 @@ public sealed partial class ScsKiller : IScsKiller
         try { if (Directory.Exists(ledger)) Directory.Delete(ledger, true); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            RecordersLog(Store.DataDir, $"couldn't delete {ledger} ({e.Message}): its entries are revoked, and it's deleted at the next start");
+            RecordersLog(Store.DataDir, $"无法删除 {ledger}（{e.Message}）：其条目已作废，将在下次启动时删除");
             try
             {
                 foreach (var entry in Directory.EnumerateFiles(ledger).Where(f => Path.GetExtension(f) == ""))
                     try { File.WriteAllText(entry + ".revoked", ""); }
-                    catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RecordersLog(Store.DataDir, $"couldn't revoke {entry}: {x.Message}"); }
+                    catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RecordersLog(Store.DataDir, $"无法作废 {entry}：{x.Message}"); }
             }
-            catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RecordersLog(Store.DataDir, $"couldn't list {ledger}: {x.Message}"); }
+            catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RecordersLog(Store.DataDir, $"无法列出 {ledger}：{x.Message}"); }
         }
     }
 
@@ -9083,7 +9083,7 @@ public sealed partial class ScsKiller : IScsKiller
         SetIni(store, dir, e => Pending(e, Convert.ToHexString(SHA256.HashData(judged!))), wait);   // tracked until it is out
         try
         {
-            if (!IniUnchanged(ini, judged)) throw new IOException("it changed while it was checked");
+            if (!IniUnchanged(ini, judged)) throw new IOException("检查期间它发生了变更");
             File.Delete(ini);
             SetIni(store, dir, _ => null, wait);
             Revoke(dir, false, log);
@@ -9136,7 +9136,7 @@ public sealed partial class ScsKiller : IScsKiller
                 }
                 finally { mutex.ReleaseMutex(); }
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log($"couldn't update {file}: {e.Message}"); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log($"无法更新 {file}：{e.Message}"); }
     }
 
     /// <summary>A start only raises GameChanged (nothing re-read: the recorder may be writing). One caller at a time.</summary>
@@ -9246,8 +9246,8 @@ public sealed partial class ScsKiller : IScsKiller
             {
                 // a missing file reads as 1601: no refusal
                 var why = File.GetLastWriteTimeUtc(RefusedFile(g.ExePath)) >= last.From.UtcDateTime ? Refused(g.ExePath) : null;
-                Log?.Report($"{g.Name}: the launch recorded nothing: " + (why != null ? $"the recorder refused it: {why}"
-                    : note is NeverSawNote or NeverSawDx11Note ? "the recorder never loaded, no scskiller.log written during the run" : $"no refusal for its exe, the page says: {note}"));
+                Log?.Report($"{g.Name}: the launch recorded nothing: " + (why != null ? $"录制器拒绝了它：{why}"
+                    : note is NeverSawNote or NeverSawDx11Note ? "the recorder never loaded, no scskiller.log written during the run" : $"其 exe 没有拒绝记录，页面显示：{note}"));
             }
             BeforeAfterExited(g);
             MergeD3DSCacheSoon(g);

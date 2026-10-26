@@ -29,7 +29,7 @@ public sealed partial class ReportWindow : Window
     {
         (this.id, this.game, this.r) = (id, game, r);
         InitializeComponent();
-        Title = $"Before and after · {game}";
+        Title = $"前后对比 · {game}";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(1180 * scale), (int)(940 * scale)));
@@ -88,15 +88,15 @@ public sealed partial class ReportWindow : Window
 
     void Fill()
     {
-        Heading.Text = $"Before and after · {game}";
+        Heading.Text = $"前后对比 · {game}";
         CardGame.Text = game.ToUpperInvariant();
         ShowIcon();
         CardSub.Text = C.Dx11 ? BeforeAfter.Dx11Label
-            : C.AlreadySmooth ? "Already smooth on this PC: few shader compilation stutters even before the compile"
-            : "Shader compilation stutter before and after SCSKiller compiled its shaders";
+            : C.AlreadySmooth ? "本机本就流畅：编译前着色器编译卡顿也很少"
+            : "SCSKiller 编译着色器前后的卡顿对比";
         if (C.Dx11)   // no ready share and no shader split: every frame of 50 ms or more
         {
-            (LabelStutters.Text, LabelReady.Text, LabelWorst.Text) = ("STUTTERS", "TIME FROZEN", "WORST STUTTER");
+            (LabelStutters.Text, LabelReady.Text, LabelWorst.Text) = ("STUTTERS", "卡顿总时长", "WORST STUTTER");
             TileStutters.Text = $"{C.Before.Hitches:N0}  →  {C.After.Hitches:N0}";
             TileReady.Text = $"{C.Before.HitchSeconds:0.0} s  →  {C.After.HitchSeconds:0.0} s";
             TileWorst.Text = $"{Ms(C.Before.WorstHitchMs)}  →  {Ms(C.After.WorstHitchMs)}";
@@ -118,7 +118,7 @@ public sealed partial class ReportWindow : Window
         {
             graph.Show(d, d.Play.From, d.Play.To, top, spp);
             axis.Width = graph.Width;
-            end.Text = Clock(run.PlaySeconds) + " of play";
+            end.Text = Clock(run.PlaySeconds) + " 的游玩时间";
         }
 
         ShowGpu.IsChecked = App.Core.Settings.BeforeAfterShowGpu;
@@ -128,38 +128,38 @@ public sealed partial class ReportWindow : Window
         Details.Children.Clear();
         Details.RowDefinitions.Clear();
         Row("Details", "Before", "After", header: true);
-        Row("Play time", Clock(C.Before.PlaySeconds), Clock(C.After.PlaySeconds));
+        Row("游玩时长", Clock(C.Before.PlaySeconds), Clock(C.After.PlaySeconds));
         if (C.Dx11)
         {
-            Row("Stutters of 50 ms or more", Count(C.Before.Hitches, C.Before), Count(C.After.Hitches, C.After));
-            Row("Time frozen by them", $"{C.Before.HitchSeconds:0.0} s", $"{C.After.HitchSeconds:0.0} s");
-            Row("Worst stutter", Ms(C.Before.WorstHitchMs), Ms(C.After.WorstHitchMs));
+            Row("50 毫秒及以上的卡顿次数", Count(C.Before.Hitches, C.Before), Count(C.After.Hitches, C.After));
+            Row("由此冻结的时间", $"{C.Before.HitchSeconds:0.0} s", $"{C.After.HitchSeconds:0.0} s");
+            Row("最长卡顿", Ms(C.Before.WorstHitchMs), Ms(C.After.WorstHitchMs));
         }
         else
         {
-            Row("Shader compilation stutters", Count(C.Before.ShaderStutters, C.Before), Count(C.After.ShaderStutters, C.After));
-            Row("Ready from the cache", Pct(C.Before.ReadyShare), Pct(C.After.ReadyShare));
+            Row("着色器编译卡顿", Count(C.Before.ShaderStutters, C.Before), Count(C.After.ShaderStutters, C.After));
+            Row("已可从缓存读取", Pct(C.Before.ReadyShare), Pct(C.After.ReadyShare));
             // state objects aren't in the ready share
             if (r.Before.Creates is { } bc && r.After.Creates is { } ac && bc.StateObjectsReady + bc.StateObjectsCompiled + ac.StateObjectsReady + ac.StateObjectsCompiled > 0)
-                Row("Ray tracing ready from the cache", Rt(bc), Rt(ac));
-            Row("Pipelines compiled while playing", Count(C.Before.PlayCompiles, C.Before), Count(C.After.PlayCompiles, C.After));
-            Row("Time frozen by shader compilation stutters", $"{C.Before.FrozenSeconds:0.0} s", $"{C.After.FrozenSeconds:0.0} s");
-            Row("Worst shader compilation stutter", Ms(C.Before.WorstStutterMs), Ms(C.After.WorstStutterMs));
+                Row("光追已可从缓存读取", Rt(bc), Rt(ac));
+            Row("游玩期间编译的管线", Count(C.Before.PlayCompiles, C.Before), Count(C.After.PlayCompiles, C.After));
+            Row("由着色器编译卡顿冻结的时间", $"{C.Before.FrozenSeconds:0.0} s", $"{C.After.FrozenSeconds:0.0} s");
+            Row("最长的一次着色器编译卡顿", Ms(C.Before.WorstStutterMs), Ms(C.After.WorstStutterMs));
         }
-        Row("1% low", $"{C.Before.Low1PctFps:0} fps", $"{C.After.Low1PctFps:0} fps");
+        Row("1% 低帧", $"{C.Before.Low1PctFps:0} fps", $"{C.After.Low1PctFps:0} fps");
         Row("Average", $"{C.Before.AvgFps:0} fps", $"{C.After.AvgFps:0} fps",
-            note: "1% low and average count from the game's first frame, menus and loading included, so a faster start alone raises them.");
+            note: "1% 低帧与平均值从游戏首帧算起，包含菜单和加载，因此仅启动更快也会使其上升。");
         if (!C.Dx11)
-            Row("Other hitches (not shader-related)", Count(C.Before.OtherHitches, C.Before), Count(C.After.OtherHitches, C.After),
-                note: "Streaming hitches can drop on a second run: Windows keeps the game's files in memory.");
+            Row("其他卡顿（与着色器无关）", Count(C.Before.OtherHitches, C.Before), Count(C.After.OtherHitches, C.After),
+                note: "第二次运行时流式加载卡顿会减少：Windows 会把游戏文件留在内存中。");
 
         Notes.Children.Clear();
         foreach (var n in C.Notes) Note(n);
-        if (C.Dx11) Note("On DirectX 11 stutters on loading screens count too, and streaming stutters can drop on a second run.");
+        if (C.Dx11) Note("在 DirectX 11 上，加载画面的卡顿也计入；第二次运行时流式加载卡顿会减少。");
         if (C.AlreadySmooth) Note($"{game} barely stuttered from shaders on this PC even before the compile.");
         // the D3D11 recorder records input layouts on AMD only, frame times only on NVIDIA
-        Note(C.Dx11 && App.Core.Vendor.Vendor != GpuVendor.Amd ? "Compiled from the game's files." : "Compiled from the game's files and your before run's recording.");
-        Note("Frame times and this report stay on your PC unless you share the image.");
+        Note(C.Dx11 && App.Core.Vendor.Vendor != GpuVendor.Amd ? "依据游戏文件编译。" : "Compiled from the game's files and your before run's recording.");
+        Note("除非你分享图片，帧时间和本报告只保存在本机。");
     }
 
     /// <summary>The game's icon as the library shows it, or its tile.</summary>
@@ -179,7 +179,7 @@ public sealed partial class ReportWindow : Window
         string? size = Size(r.Before.SwapChain) is { } s && s == Size(r.After.SwapChain) ? s : null;
         CardFooter.Text = string.Join("  ·  ", new[]
         {
-            play, "same PC", size,   // the swap chain's size is all SCSKiller knows of the settings
+            play, "同一台电脑", size,   // the swap chain's size is all SCSKiller knows of the settings
             App.Core.Settings.BeforeAfterShowGpu ? App.Core.Vendor.Gpu.Name : null,
         }.OfType<string>());
     }
@@ -224,7 +224,7 @@ public sealed partial class ReportWindow : Window
     });
 
     /// <summary>A count, and per 10 minutes of play when the two runs' play times differ by more than 10%.</summary>
-    string Count(long n, RunStats run) => $"{n:N0}" + (C.PerTenMinutes && run.PlaySeconds > 0 ? $"  ({n * 600 / run.PlaySeconds:0.#} per 10 min)" : "");
+    string Count(long n, RunStats run) => $"{n:N0}" + (C.PerTenMinutes && run.PlaySeconds > 0 ? $"（每 10 分钟 {n * 600 / run.PlaySeconds:0.#} 次）" : "");
     static string Rt(CreateStats c) => $"{c.StateObjectsReady:N0} of {c.StateObjectsReady + c.StateObjectsCompiled:N0}";
     static string Pct(double? share) => share is { } s ? $"{s * 100:0}%" : Format.Dash;
     static string Ms(double ms) => ms <= 0 ? "none" : ms >= 1000 ? $"{ms / 1000:0.0} s" : $"{ms:0} ms";
@@ -251,7 +251,7 @@ public sealed partial class ReportWindow : Window
         try
         {
             var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, SuggestedFileName = FileName($"{game} before and after") };
-            picker.FileTypeChoices.Add("PNG image", [".png"]);
+            picker.FileTypeChoices.Add("PNG 图片", [".png"]);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
             if (await picker.PickSaveFileAsync() is not { } file) return;
             using var png = await PngAsync();
@@ -259,9 +259,9 @@ public sealed partial class ReportWindow : Window
             target.Size = 0;
             await RandomAccessStream.CopyAsync(png, target);
             await target.FlushAsync();
-            Tell($"Saved {file.Name}");
+            Tell($"已保存 {file.Name}");
         }
-        catch (Exception e) { Tell("Couldn't save the image: " + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); }
+        catch (Exception e) { Tell("无法保存图片：" + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); }
     }
 
     static string FileName(string name) => string.Join(" ", name.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Trim();
@@ -270,7 +270,7 @@ public sealed partial class ReportWindow : Window
     string? Text()
     {
         try { return BeforeAfter.ShareText(game, C); }
-        catch (Exception e) { Tell("Couldn't make the share text: " + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return null; }
+        catch (Exception e) { Tell("无法生成分享文本：" + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return null; }
     }
 
     /// <summary>Flushed: the clipboard keeps it after the app quits.</summary>
@@ -285,22 +285,22 @@ public sealed partial class ReportWindow : Window
             Clipboard.Flush();
             return true;
         }
-        catch (Exception e) { Tell("Couldn't copy: " + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return false; }
+        catch (Exception e) { Tell("无法复制：" + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return false; }
     }
 
     async void OnCopy(object _, RoutedEventArgs __)
     {
-        if (await CopyAsync(image: true, Text())) Tell("Image copied");
+        if (await CopyAsync(image: true, Text())) Tell("图片已复制");
     }
 
     async void OnDiscord(object _, RoutedEventArgs __)
     {
-        if (await CopyAsync(image: true, Text())) Tell("Image and text copied: paste them in Discord");
+        if (await CopyAsync(image: true, Text())) Tell("图片和文本已复制：可粘贴到 Discord");
     }
 
     async void OnCopyText(object _, RoutedEventArgs __)
     {
-        if (Text() is { } text && await CopyAsync(image: false, text)) Tell("Text copied");
+        if (Text() is { } text && await CopyAsync(image: false, text)) Tell("文本已复制");
     }
 
     // neither composer takes an image from a link: it goes to the clipboard, and a toast over the browser says to paste it
@@ -322,9 +322,9 @@ public sealed partial class ReportWindow : Window
     {
         if (Text() is not { } text || !await CopyAsync(image: true, null)) return;
         try { Process.Start(new ProcessStartInfo(url(text)) { UseShellExecute = true })?.Dispose(); }
-        catch (Exception e) { Tell("Couldn't open the browser: " + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return; }
-        Tell("Paste (Ctrl+V) to add the image", InfoBarSeverity.Informational);
-        App.Hint("The image is copied", "Press Ctrl+V in the post to add it.");
+        catch (Exception e) { Tell("无法打开浏览器：" + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return; }
+        Tell("按 Ctrl+V 粘贴以加入图片", InfoBarSeverity.Informational);
+        App.Hint("图片已复制", "Press Ctrl+V in the post to add it.");
     }
 
     async void OnRecordAgain(object _, RoutedEventArgs __)

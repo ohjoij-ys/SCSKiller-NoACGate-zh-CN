@@ -14,7 +14,7 @@ public static class ScheduledTask
     {
         XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
         var doc = new XDocument(new XDeclaration("1.0", "UTF-16", null), new XElement(ns + "Task", new XAttribute("version", "1.2"),
-            new XElement(ns + "RegistrationInfo", new XElement(ns + "Description", "SCSKiller: re-warm game shader caches after a GPU driver update")),
+            new XElement(ns + "RegistrationInfo", new XElement(ns + "Description", "SCSKiller：显卡驱动更新后重新预编译游戏着色器缓存")),
             new XElement(ns + "Triggers",
                 new XElement(ns + "LogonTrigger", new XElement(ns + "Enabled", "true"), new XElement(ns + "UserId", user), new XElement(ns + "Delay", "PT2M")),
                 new XElement(ns + "IdleTrigger", new XElement(ns + "Enabled", "true"))),
@@ -56,7 +56,7 @@ public static class ScheduledTask
         _ = p.StandardOutput.ReadToEndAsync();
         var err = p.StandardError.ReadToEnd();
         p.WaitForExit();
-        if (p.ExitCode != 0 && throwOnError) throw new InvalidOperationException($"schtasks failed ({p.ExitCode}): {err.Trim()}");
+        if (p.ExitCode != 0 && throwOnError) throw new InvalidOperationException($"schtasks 失败（{p.ExitCode}）：{err.Trim()}");
         return p.ExitCode == 0;
     }
 

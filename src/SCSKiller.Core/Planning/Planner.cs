@@ -94,7 +94,7 @@ public sealed class Planner(string? packDir = null, string? sharedPackDir = null
     public const string UntestedNote = "not tested on this engine version yet";
     public const string Record = "turn on recording and play for about 5 minutes";
     /// <summary>Ends the reason of a game that may run on DirectX 11, where the recorder never loads.</summary>
-    public const string Dx12Only = "helps only when played on DirectX 12 (the game may run on DirectX 11)";
+    public const string Dx12Only = "仅在使用 DirectX 12 游玩时有效（游戏也可能运行在 DirectX 11）";
 
     public PlanCheck Check(Game game, EngineInfo engine, Recording? recording, VendorCaps caps)
     {

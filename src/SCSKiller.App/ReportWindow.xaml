@@ -19,29 +19,29 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="Heading" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button Click="OnSave" AutomationProperties.Name="Save image">
+                        <Button Click="OnSave" AutomationProperties.Name="保存图片">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE74E;" FontSize="14" />
-                                <TextBlock Text="Save image" />
+                                <TextBlock Text="保存图片" />
                             </StackPanel>
                         </Button>
-                        <Button Click="OnCopy" AutomationProperties.Name="Copy image">
+                        <Button Click="OnCopy" AutomationProperties.Name="复制图片">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE8C8;" FontSize="14" />
-                                <TextBlock Text="Copy image" />
+                                <TextBlock Text="复制图片" />
                             </StackPanel>
                         </Button>
-                        <DropDownButton Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Share">
+                        <DropDownButton Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="分享">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE72D;" FontSize="14" />
-                                <TextBlock Text="Share" />
+                                <TextBlock Text="分享" />
                             </StackPanel>
                             <DropDownButton.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                    <MenuFlyoutItem Text="Post on X" Click="OnX" />
-                                    <MenuFlyoutItem Text="Post on Reddit" Click="OnReddit" />
-                                    <MenuFlyoutItem Text="Copy for Discord" Click="OnDiscord" />
-                                    <MenuFlyoutItem Text="Copy text" Click="OnCopyText" />
+                                    <MenuFlyoutItem Text="发布到 X" Click="OnX" />
+                                    <MenuFlyoutItem Text="发布到 Reddit" Click="OnReddit" />
+                                    <MenuFlyoutItem Text="复制（用于 Discord）" Click="OnDiscord" />
+                                    <MenuFlyoutItem Text="复制文本" Click="OnCopyText" />
                                 </MenuFlyout>
                             </DropDownButton.Flyout>
                         </DropDownButton>
@@ -89,19 +89,19 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Style="{StaticResource Card}" Padding="20,12">
                                     <StackPanel Spacing="2">
-                                        <TextBlock x:Name="LabelStutters" Text="SHADER COMPILATION STUTTERS" Style="{StaticResource Caption}" CharacterSpacing="60" />
+                                        <TextBlock x:Name="LabelStutters" Text="着色器编译卡顿" Style="{StaticResource Caption}" CharacterSpacing="60" />
                                         <TextBlock x:Name="TileStutters" FontSize="34" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="1" Style="{StaticResource Card}" Padding="20,12">
                                     <StackPanel Spacing="2">
-                                        <TextBlock x:Name="LabelReady" Text="READY FROM THE CACHE" Style="{StaticResource Caption}" CharacterSpacing="60" />
+                                        <TextBlock x:Name="LabelReady" Text="可直接从缓存读取" Style="{StaticResource Caption}" CharacterSpacing="60" />
                                         <TextBlock x:Name="TileReady" FontSize="34" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" Style="{StaticResource Card}" Padding="20,12">
                                     <StackPanel Spacing="2">
-                                        <TextBlock x:Name="LabelWorst" Text="WORST STUTTER" Style="{StaticResource Caption}" CharacterSpacing="60" />
+                                        <TextBlock x:Name="LabelWorst" Text="最长卡顿" Style="{StaticResource Caption}" CharacterSpacing="60" />
                                         <TextBlock x:Name="TileWorst" FontSize="34" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Border>
@@ -109,7 +109,7 @@
 
                             <!-- small multiples: each run its own play range, one seconds-per-pixel and one y scale -->
                             <StackPanel Grid.Row="2" Spacing="6" VerticalAlignment="Center">
-                                <TextBlock Text="Before" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Text="之前" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                                 <StackPanel HorizontalAlignment="Left" Spacing="2">
                                     <local:FrameGraph x:Name="BeforeGraph" Height="104" />
                                     <Grid x:Name="BeforeAxis">
@@ -117,7 +117,7 @@
                                         <TextBlock x:Name="BeforeEnd" Style="{StaticResource Caption}" HorizontalAlignment="Right" />
                                     </Grid>
                                 </StackPanel>
-                                <TextBlock Text="After" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" Margin="0,4,0,0" />
+                                <TextBlock Text="之后" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" Margin="0,4,0,0" />
                                 <StackPanel HorizontalAlignment="Left" Spacing="2">
                                     <local:FrameGraph x:Name="AfterGraph" Height="104" />
                                     <Grid x:Name="AfterAxis">
@@ -137,11 +137,11 @@
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
                                     <StackPanel x:Name="LegendShader" Orientation="Horizontal" Spacing="5">
                                         <Ellipse Width="8" Height="8" Fill="{ThemeResource WarnBrush}" VerticalAlignment="Center" />
-                                        <TextBlock Text="shader compilation stutter" Style="{StaticResource Caption}" FontSize="14" />
+                                        <TextBlock Text="着色器编译卡顿" Style="{StaticResource Caption}" FontSize="14" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Spacing="5">
                                         <Ellipse Width="8" Height="8" Fill="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                        <TextBlock x:Name="LegendOther" Text="other hitch" Style="{StaticResource Caption}" FontSize="14" />
+                                        <TextBlock x:Name="LegendOther" Text="其他卡顿" Style="{StaticResource Caption}" FontSize="14" />
                                     </StackPanel>
                                 </StackPanel>
                                 <TextBlock Grid.Column="2" Text="scskiller.com" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
@@ -150,7 +150,7 @@
                     </Border>
                 </Viewbox>
 
-                <CheckBox x:Name="ShowGpu" Content="Show my GPU on the image" Click="OnShowGpu" />
+                <CheckBox x:Name="ShowGpu" Content="在图片上显示我的显卡" Click="OnShowGpu" />
 
                 <Border Style="{StaticResource Card}" Padding="20,16">
                     <StackPanel Spacing="12">
@@ -168,8 +168,8 @@
                 </Border>
 
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button x:Name="RecordAgain" Content="Record the after run again" Click="OnRecordAgain" />
-                    <Button Content="Start over" Click="OnStartOver" />
+                    <Button x:Name="RecordAgain" Content="重新录制“之后”运行" Click="OnRecordAgain" />
+                    <Button Content="重新开始" Click="OnStartOver" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

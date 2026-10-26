@@ -127,12 +127,12 @@ public sealed record StagedUpdate(string Channel, string Version, string FileNam
     public string? Refused(IReadOnlyDictionary<string, string> keys)
     {
         var at = Array.IndexOf(UpdateChannels.All, Channel);
-        if (at < 0) return $"unknown channel '{Channel}'";
+        if (at < 0) return $"未知通道“{Channel}”";
         if (Feeds.Count == 0) return "no signed feed";
         var listed = false;
         foreach (var (channel, f) in Feeds)
         {
-            if (Array.IndexOf(UpdateChannels.All, channel) is var c && (c < 0 || c > at)) return $"the {channel} feed isn't read on the {Channel} channel";
+            if (Array.IndexOf(UpdateChannels.All, channel) is var c && (c < 0 || c > at)) return $"{Channel} 通道上不读取 {channel} 源";
             try { FeedTrust.Verify(keys, channel, f.Feed, f.Sig); }
             catch (FeedRejectedException e) { return $"the {channel} feed: {e.Message}"; }
             listed |= Lists(f.Feed);
@@ -176,11 +176,11 @@ public enum StartStep { Apply, Installed, Failed, Older }
 /// A download from the internal channel's feed never installs by itself.</summary>
 public static class AutoInstall
 {
-    public const string Off = "Automatic install is off.";
-    public const string Internal = "Updates on the internal channel install only through Restart to update.";
-    public const string Compiling = "A compile is running.";
-    public const string Offline = "A recording session's game or cleanup is running. The update installs once it has ended.";
-    public const string Playing = "A game is running, or the games aren't known yet.";
+    public const string Off = "自动安装已关闭。";
+    public const string Internal = "内部通道的更新只能通过“重启以更新”安装。";
+    public const string Compiling = "正在编译。";
+    public const string Offline = "正在运行录制会话中的游戏或清理。结束后将安装更新。";
+    public const string Playing = "有游戏正在运行，或尚未获知游戏状态。";
 
     /// <summary>Whether a download from <paramref name="channel"/>'s feed installs by itself at a start or quit.</summary>
     public static bool On(Settings s, string channel) => s.InstallUpdatesAutomatically && channel != UpdateChannels.Internal;
@@ -197,8 +197,8 @@ public static class AutoInstall
         && (AppVersion.Parse(staged.Version) is { } v && v.CompareTo(current) > 0 || backToStable && staged.Channel == UpdateChannels.Stable);
 
     public static string ReadyNote(string version, bool auto) => auto
-        ? $"SCSKiller {version} is ready: it installs the next time SCSKiller starts or quits, or use Restart to update at the top."
-        : $"SCSKiller {version} is ready: use Restart to update at the top.";
+        ? $"SCSKiller {version} 已就绪：下次启动或退出时安装，也可点击顶部的“重启以更新”。"
+        : $"SCSKiller {version} 已就绪：请点击顶部的“重启以更新”。";
 }
 
 /// <summary>Where updates and their source come from. <see cref="GhRepo"/> is compiled in: renaming the public repo
@@ -337,7 +337,7 @@ public sealed class FeedClient(HttpMessageHandler handler, FeedTrust trust, Func
             throw new HttpRequestException($"{url.Host} asked to wait", null, HttpStatusCode.TooManyRequests);
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (channel != UpdateChannels.Stable)
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await token() ?? throw new InvalidOperationException($"sign in for the {channel} channel"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await token() ?? throw new InvalidOperationException($"登录以使用 {channel} 通道"));
         var r = await http.SendAsync(request, completion, ct);
         if (r.IsSuccessStatusCode) return r;
         if (r.StatusCode == HttpStatusCode.TooManyRequests) Limited(url, r);
@@ -414,22 +414,22 @@ public sealed class FeedTrust(AppStore store, IReadOnlyDictionary<string, string
         try
         {
             var j = JsonDocument.Parse(sig).RootElement;
-            if (j.GetProperty("v").GetInt32() != 1) throw new FeedRejectedException("unknown signature version");
-            if (j.GetProperty("channel").GetString() != channel) throw new FeedRejectedException("the signature is for another channel");
+            if (j.GetProperty("v").GetInt32() != 1) throw new FeedRejectedException("未知的签名版本");
+            if (j.GetProperty("channel").GetString() != channel) throw new FeedRejectedException("签名属于另一个通道");
             (signedAt, sha, kid) = (j.GetProperty("signed_at").GetString()!, j.GetProperty("feed_sha256").GetString()!, j.GetProperty("kid").GetString()!);
             signature = Convert.FromBase64String(j.GetProperty("sig").GetString()!);
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or NullReferenceException)
         {
-            throw new FeedRejectedException("malformed signature file");
+            throw new FeedRejectedException("签名文件格式错误");
         }
         if (!keys.TryGetValue(kid, out var pub)) throw new FeedRejectedException($"unknown key '{kid}'");
         if (!PublicKey.TryImport(Ed, Convert.FromBase64String(pub), KeyBlobFormat.RawPublicKey, out var key) || !Ed.Verify(key!, Message(channel, signedAt, sha), signature))
-            throw new FeedRejectedException("bad signature");
+            throw new FeedRejectedException("签名无效");
         if (!string.Equals(Convert.ToHexStringLower(SHA256.HashData(feed)), sha, StringComparison.OrdinalIgnoreCase))
-            throw new FeedRejectedException("the feed doesn't match its signature");
+            throw new FeedRejectedException("更新源与其签名不符");
         return DateTimeOffset.TryParse(signedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at)
-            ? at : throw new FeedRejectedException("malformed signed_at");
+            ? at : throw new FeedRejectedException("signed_at 格式错误");
     }
 }
 

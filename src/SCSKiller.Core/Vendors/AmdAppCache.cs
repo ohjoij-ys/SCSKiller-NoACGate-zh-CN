@@ -156,7 +156,7 @@ public sealed class AmdAppCache(string dxcDir, string dxDir) : IAppCache
         if (planned <= free) return null;
         return $"This queue adds about {App.Format.Bytes(planned)} to the shader cache ({string.Join(", ", growing.Select(q => $"{q.Game} {App.Format.Bytes(q.Bytes)}"))}), "
             + $"{App.Format.Bytes(planned - free)} more than the {App.Format.Bytes(free)} free under the AMD driver's fixed {App.Format.Bytes(cap)} limit. "
-            + "The driver then trims the least recently used caches, older games' included, and those games stutter until compiled again.";
+            + "驱动随后会清理较久未使用的缓存，包括其他游戏；相关游戏重新编译前可能再次卡顿。";
     }
 
     IEnumerable<(string Path, string Key)> All()

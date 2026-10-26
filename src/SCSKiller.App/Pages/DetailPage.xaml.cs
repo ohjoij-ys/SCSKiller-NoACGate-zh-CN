@@ -36,13 +36,13 @@ public sealed partial class DetailPage : Page
         _ = Task.Run(() =>
         {
             try { k.CheckGame(id); }
-            catch (Exception e) { k.Log?.Report($"checking {name} failed: {e.Message}"); }
+            catch (Exception e) { k.Log?.Report($"检查 {name} 失败：{e.Message}"); }
         });
     }
 
     public ContentDialog PartlyWhyDialog() => new()
     {
-        XamlRoot = XamlRoot, Title = $"Why is {Vm.Name} partly compiled?", CloseButtonText = "Close",
+        XamlRoot = XamlRoot, Title = $"为什么 {Vm.Name} 只完成了部分编译？", CloseButtonText = "关闭",
         Content = new TextBlock { Text = DetailVm.PartlyCompiledWhy, TextWrapping = TextWrapping.Wrap },
     };
 
@@ -51,17 +51,17 @@ public sealed partial class DetailPage : Page
     async void OnSetAesKey(object _, RoutedEventArgs __)
     {
         var vm = Vm;
-        if (await AesKeyDialog.ShowAsync(XamlRoot, vm.Row.Id, $"Set the AES key for {vm.Name}")) vm.RefreshGame();
+        if (await AesKeyDialog.ShowAsync(XamlRoot, vm.Row.Id, $"为 {vm.Name} 设置 AES 密钥")) vm.RefreshGame();
     }
 
     static readonly (CompatChoice Choice, string Text)[] ReportChoices =
     [
-        (CompatChoice.Gone, "Shader compilation stutter is gone."),
-        (CompatChoice.Better, "Shader compilation stutter is better, but some stutter remains."),
-        (CompatChoice.NoHelp, "The game compiled, but it did not help with the stutter."),
-        (CompatChoice.Worse, "The game runs worse than before compiling."),
-        (CompatChoice.NotCompiled, "The game could not be compiled."),
-        (CompatChoice.NoStutterBefore, "The game had no shader compilation stutter before compiling either."),
+        (CompatChoice.Gone, "着色器编译卡顿已消除。"),
+        (CompatChoice.Better, "着色器编译卡顿有所改善，但仍有少量卡顿。"),
+        (CompatChoice.NoHelp, "游戏已编译，但对卡顿没有帮助。"),
+        (CompatChoice.Worse, "编译后游戏运行反而更差。"),
+        (CompatChoice.NotCompiled, "游戏无法编译。"),
+        (CompatChoice.NoStutterBefore, "此游戏在编译前也没有着色器编译卡顿。"),
     ];
 
     /// <summary>Rate this compile's popup for this PC's earlier report of the build (<paramref name="sent"/>), or its thanks
@@ -70,17 +70,17 @@ public sealed partial class DetailPage : Page
     public ContentDialog ReportDialog(CompatSent? sent, bool thanks = false)
     {
         var (vm, id) = (Vm, Vm.Row.Id);
-        var dialog = App.Confirm(this, $"Rate this compile for {vm.Name}", null!, "Send rating");
+        var dialog = App.Confirm(this, $"为 {vm.Name} 的本次编译评分", null!, "发送评分");
         if (thanks) return Thanked(dialog);
         static TextBlock Text(string t) => new() { Text = t, TextWrapping = TextWrapping.Wrap };
         var choices = new RadioButtons();
         foreach (var (_, t) in ReportChoices) choices.Items.Add(new RadioButton { Content = Text(t) });
         CheckBox Box(string t) => new() { Content = Text(t) };
-        var (frameGen, upscaler, mods) = (Box("Frame generation was on"), Box("An upscaler was on (DLSS, FSR or XeSS)"),
-            Box("Mods were installed (for example ReShade, OptiScaler or RenoDX)"));
+        var (frameGen, upscaler, mods) = (Box("开启了帧生成"), Box("开启了超分辨率（DLSS、FSR 或 XeSS）"),
+            Box("安装了 mod（例如 ReShade、OptiScaler 或 RenoDX）"));
         var problem = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = (Brush)Application.Current.Resources["WarnBrush"], Visibility = Visibility.Collapsed };
-        var panel = new StackPanel { Spacing = 12, Children = { Text($"Tell other players how {vm.Name} ran after SCSKiller compiled it. The rating is anonymous.") } };
-        if (sent != null) panel.Children.Add(new TextBlock { Text = "You already rated this version of the game. Rating again replaces it.", TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        var panel = new StackPanel { Spacing = 12, Children = { Text($"告诉其他玩家 SCSKiller 编译后 {vm.Name} 的运行情况。评分是匿名的。") } };
+        if (sent != null) panel.Children.Add(new TextBlock { Text = "你已评价过此版本的游戏，再次评分将覆盖原评价。", TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         panel.Children.Add(choices);
         panel.Children.Add(new StackPanel { Children = { frameGen, upscaler, mods } });
         if (!App.Core.Settings.CompatReportSent)
@@ -89,9 +89,9 @@ public sealed partial class DetailPage : Page
                 Spacing = 2,
                 Children =
                 {
-                    new TextBlock { Text = "Sent with the rating: your CPU model, GPU model, driver version, Windows version, and what SCSKiller compiled for this game. Nothing else.",
+                    new TextBlock { Text = "随评分一起发送：CPU 型号、显卡型号、驱动版本、Windows 版本，以及 SCSKiller 为此游戏编译的内容。不含其他信息。",
                         TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["Secondary"] },
-                    new HyperlinkButton { Content = "What's shared", NavigateUri = new Uri(PrivacyReports), Padding = new(0) },
+                    new HyperlinkButton { Content = "共享内容", NavigateUri = new Uri(PrivacyReports), Padding = new(0) },
                 },
             });
         panel.Children.Add(problem);
@@ -125,7 +125,7 @@ public sealed partial class DetailPage : Page
 
         static ContentDialog Thanked(ContentDialog d)
         {
-            (d.Content, d.PrimaryButtonText, d.CloseButtonText) = (Text("Thanks, your rating was sent."), "", "Close");
+            (d.Content, d.PrimaryButtonText, d.CloseButtonText) = (Text("谢谢，你的评分已发送。"), "", "关闭");
             return d;
         }
     }
@@ -150,13 +150,13 @@ public sealed partial class DetailPage : Page
             (vm.DiskLabel, vm.HasDiskValue ? vm.DiskValue : ""),
             (vm.StuttersLabel, vm.HasStutterTile ? vm.StuttersValue : ""),
             (vm.CompileTitle, vm.HasCompileCard ? vm.CompileText : ""),
-            ("Last session", vm.FramesVerdict),
+            ("上次会话", vm.FramesVerdict),
         }.Concat(vm.Details.Select(d => (d.Label, d.Value))).ToList();
-        var dialog = App.Confirm(this, $"Report a problem with {vm.Name}", null!, "Send");
+        var dialog = App.Confirm(this, $"报告 {vm.Name} 的问题", null!, "Send");
         if (sentId != null) return Thanked(dialog, sentId);
         static TextBlock Text(string t) => new() { Text = t, TextWrapping = TextWrapping.Wrap };
-        var words = new TextBox { Header = "What happened?", Text = message ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = ProblemReport.MaxMessageChars };
-        var withLog = new CheckBox { Content = Text("Include the app's log lines about this game"), IsChecked = true };
+        var words = new TextBox { Header = "发生了什么？", Text = message ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = ProblemReport.MaxMessageChars };
+        var withLog = new CheckBox { Content = Text("附上程序中关于此游戏的日志"), IsChecked = true };
         var report = new TextBox
         {
             IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 240,
@@ -179,14 +179,14 @@ public sealed partial class DetailPage : Page
                 Spacing = 12,
                 Children =
                 {
-                    words, new StackPanel { Spacing = 8, Children = { Text("Sent with your message"), report } }, withLog,
+                    words, new StackPanel { Spacing = 8, Children = { Text("随消息一起发送"), report } }, withLog,
                     new StackPanel
                     {
                         Spacing = 2,
                         Children =
                         {
-                            new TextBlock { Text = "Sent to the SCSKiller server, kept 90 days and only read to fix the problem.", TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["Secondary"] },
-                            new HyperlinkButton { Content = "What's sent", NavigateUri = new Uri(PrivacyProblems), Padding = new(0) },
+                            new TextBlock { Text = "发送至 SCSKiller 服务器，保留 90 天，仅用于修复该问题。", TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["Secondary"] },
+                            new HyperlinkButton { Content = "发送内容", NavigateUri = new Uri(PrivacyProblems), Padding = new(0) },
                         },
                     },
                     problemText,
@@ -208,7 +208,7 @@ public sealed partial class DetailPage : Page
             if (sent != null) Thanked(d, sent);
             else
             {
-                (problemText.Text, problemText.Visibility) = (why ?? "Not sent. Try again later.", Visibility.Visible);
+                (problemText.Text, problemText.Visibility) = (why ?? "未发送，请稍后再试。", Visibility.Visible);
                 d.IsPrimaryButtonEnabled = true;
             }
             deferral.Complete();
@@ -217,15 +217,15 @@ public sealed partial class DetailPage : Page
 
         static ContentDialog Thanked(ContentDialog d, string reportId)
         {
-            (d.PrimaryButtonText, d.CloseButtonText) = ("", "Close");
+            (d.PrimaryButtonText, d.CloseButtonText) = ("", "关闭");
             d.Content = new StackPanel
             {
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = "Thanks, your report was sent.", TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = $"Report ID {reportId}", IsTextSelectionEnabled = true, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
-                    new TextBlock { Text = "Mention it on Discord or GitHub so we can find your report.", TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["Secondary"] },
+                    new TextBlock { Text = "谢谢，你的报告已发送。", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = $"报告编号 {reportId}", IsTextSelectionEnabled = true, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
+                    new TextBlock { Text = "可在 Discord 或 GitHub 上提及该编号，便于我们找到你的报告。", TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["Secondary"] },
                 },
             };
             return d;
@@ -253,7 +253,7 @@ public sealed partial class DetailPage : Page
     {
         Vm = new DetailVm((string)e.Parameter);
         Vm.ReadCaches();
-        Crumbs.ItemsSource = new[] { "Library", Vm.Name };
+        Crumbs.ItemsSource = new[] { "游戏库", Vm.Name };
         Vm.PropertyChanged += (_, _) => DrawFrames();
         Bindings.Update();
         DrawFrames();
@@ -262,11 +262,11 @@ public sealed partial class DetailPage : Page
     async void OnGameFolder(object _, RoutedEventArgs __)
     {
         var game = Vm.Row.State.Game;
-        if (await GameFolderDialog.ShowAsync(XamlRoot, game, $"{game.Name}'s folder", "Save") is not { } folder) return;
+        if (await GameFolderDialog.ShowAsync(XamlRoot, game, $"{game.Name}'s folder", "保存") is not { } folder) return;
         try { await Task.Run(() => App.Core.AddManualGame(game.ExePath, folder)); }   // checks the folder again, then the game
         catch (Exception ex)
         {
-            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Couldn't set the game folder", Content = ex.Message, CloseButtonText = "OK" });
+            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "无法设置游戏目录", Content = ex.Message, CloseButtonText = "确定" });
             return;
         }
         Vm.Refresh();
@@ -275,10 +275,10 @@ public sealed partial class DetailPage : Page
     // Only the name shown: the game's id, which everything SCSKiller keeps of it is stored under, stays.
     async void OnRename(object _, RoutedEventArgs __)
     {
-        var box = new TextBox { Text = Vm.Name, Header = "Name", Description = "Only the name SCSKiller shows changes.", MaxLength = 200 };
+        var box = new TextBox { Text = Vm.Name, Header = "Name", Description = "只会改变 SCSKiller 显示的名称。", MaxLength = 200 };
         var dialog = new ContentDialog
         {
-            XamlRoot = XamlRoot, Title = $"Rename {Vm.Name}", Content = box, PrimaryButtonText = "Rename", CloseButtonText = "Cancel",
+            XamlRoot = XamlRoot, Title = $"重命名 {Vm.Name}", Content = box, PrimaryButtonText = "重命名", CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary,
         };
         box.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = box.Text.Trim().Length > 0;
@@ -287,24 +287,24 @@ public sealed partial class DetailPage : Page
         try { Fmt.Rename(Vm.Row.Id, box.Text); }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Couldn't rename the game", Content = ex.Message, CloseButtonText = "OK" });
+            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "无法重命名游戏", Content = ex.Message, CloseButtonText = "确定" });
             return;
         }
         Vm.Refresh();
-        Crumbs.ItemsSource = new[] { "Library", Vm.Name };
+        Crumbs.ItemsSource = new[] { "游戏库", Vm.Name };
     }
 
     async void OnRemoveGame(object _, RoutedEventArgs __)
     {
         var (id, manual) = (Vm.Row.Id, Vm.IsManual);
-        if (!await App.ConfirmAsync(this, $"Remove {Vm.Name} from the library?",
-                manual ? "SCSKiller forgets the game and takes its recorder out of the game's folder. The game's own files stay, and you can add it again any time." : Vm.HideNote,
-                "Remove")) return;
+        if (!await App.ConfirmAsync(this, $"从游戏库移除 {Vm.Name}？",
+                manual ? "SCSKiller 会忘记此游戏并从其目录卸载录制器。游戏自带文件会保留，你随时可以重新添加。" : Vm.HideNote,
+                "移除")) return;
         // refused while a compile of it runs, and a store game while it runs or its recorder stays in
         try { await Task.Run(() => { if (manual) App.Core.RemoveManualGame(id); else App.Core.HideGame(id); }); }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Couldn't remove the game", Content = ex.Message, CloseButtonText = "OK" });
+            await App.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "无法移除游戏", Content = ex.Message, CloseButtonText = "确定" });
             return;
         }
         App.Main.Navigate(typeof(LibraryPage));
@@ -344,7 +344,7 @@ public sealed partial class DetailPage : Page
         var (vm, id) = (Vm, Vm.Row.Id);
         if (!App.Core.Settings.MaxCompileConfirmed)
         {
-            if (!await App.ConfirmAsync(this, $"Max compile {vm.Name}?", DetailVm.MaxCompileWhy, "Max compile")) return;
+            if (!await App.ConfirmAsync(this, $"最大编译 {vm.Name}？", DetailVm.MaxCompileWhy, "最大编译")) return;
             App.Core.Settings = App.Core.Settings with { MaxCompileConfirmed = true };
         }
         App.Core.CompileMax(id);
@@ -405,7 +405,7 @@ public sealed partial class DetailPage : Page
 
     /// <summary>Never blank: an exception without a message (some WinRT ones) shows its type, and its inner one's.</summary>
     static string Describe(Exception e) => !string.IsNullOrWhiteSpace(e.Message) ? e.Message
-        : e.GetType().Name + (e.InnerException is { } inner ? ": " + Describe(inner) : $" (0x{e.HResult:X8})");
+        : e.GetType().Name + (e.InnerException is { } inner ? ": " + Describe(inner) : $"（0x{e.HResult:X8}）");
 
     // The core's switches do file I/O: off the UI thread, the switch disabled meanwhile (pending = the state asked for).
     async void Set(Action<DetailVm, bool?> setPending, bool pending, Action<string> change)
@@ -426,16 +426,16 @@ public sealed partial class DetailPage : Page
     async void OnClearCache(object _, RoutedEventArgs __)
     {
         var (vm, id) = (Vm, Vm.Row.Id);
-        var note = "The game will compile shaders during play again until you re-warm it."
-            + (vm.Row.State.AntiCheat != AntiCheat.None ? " Anti-cheat game: only the driver cache is cleared." : "");   // VAC: as any game (ScsKiller.GameCaches)
-        var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "Measuring the cache files…\n\n" + note };
+        var note = "重新预热前，游戏可能在游玩时再次编译着色器。"
+            + (vm.Row.State.AntiCheat != AntiCheat.None ? " 检测到反作弊：这里只清理驱动缓存。" : "");   // VAC: as any game (ScsKiller.GameCaches)
+        var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "正在统计缓存文件…\n\n" + note };
         var ownText = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var alsoOwn = new CheckBox { Content = ownText, Visibility = Visibility.Collapsed };
         _ = Measure();
-        if (await App.ShowAsync(App.Confirm(this, $"Clear the shader cache of {vm.Name}?", new StackPanel { Spacing = 12, Children = { text, alsoOwn } }, "Clear cache"))
+        if (await App.ShowAsync(App.Confirm(this, $"清理 {vm.Name} 的着色器缓存？", new StackPanel { Spacing = 12, Children = { text, alsoOwn } }, "清理缓存"))
             != ContentDialogResult.Primary) return;
         var withOwn = alsoOwn.IsChecked == true;
-        try { vm.Error = await Task.Run(() => App.Core.ClearGameCache(id, withOwn)) ? null : "Nothing was cleared: no shader-cache files of this game were found."; }
+        try { vm.Error = await Task.Run(() => App.Core.ClearGameCache(id, withOwn)) ? null : "未清理任何文件：没有找到此游戏的着色器缓存。"; }
         catch (Exception ex) { vm.Error = ex.Message; }
         vm.ReadCaches();
         vm.Refresh();
@@ -448,8 +448,8 @@ public sealed partial class DetailPage : Page
                 var all = await Task.Run(() => App.Core.GameCaches(id, gamePrecache: true));
                 static bool Own(CachePart p) => p.Name is Core.App.ScsKiller.PipelinePart or Core.App.ScsKiller.PrecachePart;
                 var (parts, own) = (all.Where(p => !Own(p)).ToList(), all.Where(Own).ToList());
-                text.Text = (parts.Count > 0 ? string.Join(" · ", parts.Select(p => $"{p.Name} {Format.Bytes(p.Bytes)}")) : "No cache files on disk now") + ".\n\n" + note;
-                ownText.Text = $"Also delete the game's own shader cache ({Format.Bytes(own.Sum(p => p.Bytes))}). It rebuilds it at its next start, which then takes longer.";
+                text.Text = (parts.Count > 0 ? string.Join(" · ", parts.Select(p => $"{p.Name} {Format.Bytes(p.Bytes)}")) : "磁盘上当前没有缓存文件") + ".\n\n" + note;
+                ownText.Text = $"同时删除游戏自己的着色器缓存（{Format.Bytes(own.Sum(p => p.Bytes))}）。下次启动时会重新生成，启动时间可能更长。";
                 alsoOwn.Visibility = own.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex) { text.Text = Describe(ex) + "\n\n" + note; }
@@ -467,7 +467,7 @@ public sealed partial class DetailPage : Page
             BeforeAfterStage.BeforeArmed when ba!.ClearPending => await BeforeAfterUi.ContinueAsync(id),
             BeforeAfterStage.BeforeArmed or BeforeAfterStage.AfterArmed => await BeforeAfterUi.LaunchAsync(id),
             BeforeAfterStage.AfterReady => await BeforeAfterUi.ContinueAsync(id),
-            BeforeAfterStage.Done => await ReportWindow.OpenAsync(id) is null ? "The report isn't there anymore: start over." : null,
+            BeforeAfterStage.Done => await ReportWindow.OpenAsync(id) is null ? "报告已不存在：请重新开始。" : null,
             _ => null,
         };
         Shown(vm, error);
@@ -489,13 +489,13 @@ public sealed partial class DetailPage : Page
     async void OnClearRecording(object _, RoutedEventArgs __)
     {
         var (vm, id) = (Vm, Vm.Row.Id);
-        if (!await App.ConfirmAsync(this, $"Clear the recording of {vm.Name}?",
-                "The recorded pipelines are removed. They're compiled again only if the game creates them again while recording, "
-                + "and the compile plan goes back to what the game's files give.\n\nThe recorder itself stays in, and the game's files aren't touched.",
-                "Clear recording")) return;
+        if (!await App.ConfirmAsync(this, $"清理 {vm.Name} 的录制数据？",
+                "已录到的管线会被移除；只有在开启录制后由游戏再次创建时才能重新获得，编译计划会退回到游戏文件可提供的内容。"
+                + "编译计划会退回到游戏文件可提供的内容。\n\n录制器本身会保留，游戏自带文件不会被改动。",
+                "清除录制数据")) return;
         vm.ClearingRecording = true;
         vm.Refresh();
-        try { vm.Error = await Task.Run(() => App.Core.ClearRecording(id)) ? null : "Nothing was cleared: no recording of this game was found."; }
+        try { vm.Error = await Task.Run(() => App.Core.ClearRecording(id)) ? null : "未清理任何文件：没有找到此游戏的录制数据。"; }
         catch (Exception ex) { vm.Error = ex.Message; }
         vm.ClearingRecording = false;
         vm.Refresh();
@@ -526,8 +526,8 @@ public sealed partial class DetailPage : Page
     {
         var on = AntiCheatRecordSwitch.IsOn;
         if (on == Vm.AntiCheatRecordOn) return;
-        if (on && !await App.ConfirmAsync(this, $"Allow the recorder in {Vm.Name} beside its anti-cheat?",
-                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = Vm.AntiCheatRecordNote }, "Record anyway"))
+        if (on && !await App.ConfirmAsync(this, $"允许在 {Vm.Name} 中与反作弊并存录制？",
+                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = Vm.AntiCheatRecordNote }, "仍然录制"))
         {
             Vm.Refresh();   // the switch goes back to what the record says
             return;
@@ -540,9 +540,9 @@ public sealed partial class DetailPage : Page
     {
         var (vm, id) = (Vm, Vm.Row.Id);
         if (vm.Risk) { await RecordRisk(vm, id); return; }
-        if (!await App.ConfirmAsync(this, $"Start {vm.Name} offline without EasyAntiCheat?",
-                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = DetailVm.OfflineRisk + " Online play isn't possible in that session." },
-                "Record offline session")) return;
+        if (!await App.ConfirmAsync(this, $"以不加载 EasyAntiCheat 的离线模式启动 {vm.Name}？",
+                new TextBlock { TextWrapping = TextWrapping.Wrap, Text = DetailVm.OfflineRisk + " 本次会话无法联网游玩。" },
+                "启动离线录制会话")) return;
         await StartSession(vm, () => App.Core.StartOfflineSession(id, confirmed: true));
     }
 
@@ -560,9 +560,9 @@ public sealed partial class DetailPage : Page
             return;
         }
         var fresh = vm.Row.State with { AntiCheat = shown };   // VAC stays the state's: the check only names a client anti-cheat
-        var ok = await App.ConfirmAsync(this, $"Record {vm.Name} at your own risk?",
-            new TextBlock { TextWrapping = TextWrapping.Wrap, Text = DetailVm.RiskText(fresh) + " SCSKiller removes its files when the game exits, or after a crash at your next logon." },
-            "Record session");
+        var ok = await App.ConfirmAsync(this, $"以风险自负的方式录制 {vm.Name}？",
+            new TextBlock { TextWrapping = TextWrapping.Wrap, Text = DetailVm.RiskText(fresh) + " 游戏退出后 SCSKiller 会移除其文件；若发生崩溃，则在你下次登录时移除。" },
+            "开始录制会话");
         if (!ok)
         {
             vm.OfflineStarting = false;

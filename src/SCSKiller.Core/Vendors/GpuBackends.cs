@@ -6,7 +6,7 @@ public static class GpuBackends
 {
     /// <summary>Backend for the picked adapter (<see cref="Pick"/>). <paramref name="intel"/>: <see cref="Settings.ExperimentalIntel"/>.</summary>
     public static IGpuVendorBackend Detect(GpuChoice? choice = null, bool intel = false) =>
-        For(Pick(Adapters(), choice)?.Gpu ?? new GpuInfo(GpuVendor.Unknown, "no D3D adapter", "", 0, 0), intel);
+        For(Pick(Adapters(), choice)?.Gpu ?? new GpuInfo(GpuVendor.Unknown, "没有 D3D 适配器", "", 0, 0), intel);
 
     /// <summary>The backend of <paramref name="gpu"/>. Adding a vendor = one case here.</summary>
     public static IGpuVendorBackend For(GpuInfo gpu, bool intel = false)
@@ -124,5 +124,5 @@ public sealed class UnsupportedVendor(GpuInfo gpu) : IGpuVendorBackend, IRefresh
     public VendorCaps Caps { get; } = new("unsupported", false, false, false);
     public CacheUsage GetCacheUsage() => new("", 0, true);
     public CacheLimit? GetCacheLimit() => null;
-    public void SetCacheLimit(CacheLimit limit) => throw new NotSupportedException($"cache size is not configurable for {Gpu.Name}");
+    public void SetCacheLimit(CacheLimit limit) => throw new NotSupportedException($"{Gpu.Name} 的缓存大小不可配置");
 }
