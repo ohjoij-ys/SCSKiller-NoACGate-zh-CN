@@ -32,13 +32,13 @@ public sealed record CompatReport(string GameId, string StoreBuildKey, CompatCho
     public static string? WhyNot(GameState s, string? vendor) =>
         // a game the user added has an id made from a path on this PC: never sent
         s.Game.Store == Store.Manual || s.Game.Version == null ? NoBuild
-        : vendor == null ? "Ratings are for NVIDIA and AMD GPUs."
-        : s.CompileFailed ? null   // "could not be compiled" needs no launch
-        : s.WarmedAt == null ? "Compile the game and play it once to rate how it ran."
-        : !(s.PlayedAt > s.WarmedAt) ? "Play the game once since it compiled to rate how it ran."
+        : vendor == null ? "评分仅针对 NVIDIA 与 AMD 显卡。"
+        : s.CompileFailed ? null   // "无法编译" needs no launch
+        : s.WarmedAt == null ? "先编译，再玩一次，就能给它评分。"
+        : !(s.PlayedAt > s.WarmedAt) ? "编译之后玩一次，就能给它评分。"
         : null;
 
-    public const string NoBuild = "SCSKiller can't tell which version of this game is installed.";
+    public const string NoBuild = "SCSKiller 看不出装的是这个游戏的哪个版本。";
 
     /// <summary>The store build key uploads use too (game id, "@", the store's build id).</summary>
     public static string BuildKey(Game g) => $"{g.Id}@{g.Version}";

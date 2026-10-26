@@ -55,7 +55,7 @@ static class BeforeAfterUi
         };
         var dialog = new ContentDialog
         {
-            XamlRoot = root, Title = mode == Intro.StartOver ? $"重新开始 {game} 的前后对比？" : "Before and after recording",
+            XamlRoot = root, Title = mode == Intro.StartOver ? $"重新开始 {game} 的前后对比？" : "录制前后对比",
             Content = new ScrollViewer
             {
                 Content = new StackPanel

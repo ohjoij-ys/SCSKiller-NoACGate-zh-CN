@@ -366,7 +366,7 @@ public partial class App : Application
                 new TextBlock { Text = "可随时在设置中更改。", TextWrapping = TextWrapping.Wrap, Style = (Style)Current.Resources["Caption"] },
             },
         },
-        PrimaryButtonText = "开启", CloseButtonText = "Keep it off", DefaultButton = ContentDialogButton.None,   // no nudge either way
+        PrimaryButtonText = "开启", CloseButtonText = "保持关闭", DefaultButton = ContentDialogButton.None,   // no nudge either way
     };
 
     /// <summary>The one-time diagnostics question (<see cref="Diagnostics.Asks"/>): either button, or Esc, answers it.</summary>
@@ -562,15 +562,15 @@ public partial class App : Application
     static AppNotification DriverToast(IReadOnlyList<GameState> stale)
     {
         var time = TimeSpan.FromTicks(stale.Sum(g => (g.EstimatedWarmTime ?? TimeSpan.Zero).Ticks));
-        string games = stale.Count == 1 ? "1 个游戏需要" : $"{stale.Count} games need";
+        string games = stale.Count == 1 ? "1 个游戏" : $"{stale.Count} 个游戏";
         return new AppNotificationBuilder()
             .AddArgument("action", "open")
-            .AddText($"{Fmt.Vendor(Core.Vendor.Vendor)} driver updated")
-            .AddText($"驱动 {Core.Vendor.Gpu.DriverVersion} 清除了着色器缓存。正在重建 {games}：" +
-                     $"{string.Join(", ", stale.Select(g => g.Game.Name))}" + (time > TimeSpan.Zero ? $", about {Format.Duration(time)}." : "."))
+            .AddText($"{Fmt.Vendor(Core.Vendor.Vendor)} 驱动已更新")
+            .AddText($"驱动 {Core.Vendor.Gpu.DriverVersion} 清除了着色器缓存，需要重新编译 {games}：" +
+                     $"{string.Join(", ", stale.Select(g => g.Game.Name))}" + (time > TimeSpan.Zero ? $"，约需 {Format.Duration(time)}。" : "。"))
             .AddButton(new AppNotificationButton("立即编译").AddArgument("action", "now"))
             .AddButton(new AppNotificationButton("空闲时编译").AddArgument("action", "idle"))
-            .AddButton(new AppNotificationButton("Skip").AddArgument("action", "skip"))
+            .AddButton(new AppNotificationButton("跳过").AddArgument("action", "skip"))
             .BuildNotification();
     }
 

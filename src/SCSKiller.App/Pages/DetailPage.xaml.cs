@@ -262,7 +262,7 @@ public sealed partial class DetailPage : Page
     async void OnGameFolder(object _, RoutedEventArgs __)
     {
         var game = Vm.Row.State.Game;
-        if (await GameFolderDialog.ShowAsync(XamlRoot, game, $"{game.Name}'s folder", "保存") is not { } folder) return;
+        if (await GameFolderDialog.ShowAsync(XamlRoot, game, $"{game.Name} 的文件夹", "保存") is not { } folder) return;
         try { await Task.Run(() => App.Core.AddManualGame(game.ExePath, folder)); }   // checks the folder again, then the game
         catch (Exception ex)
         {

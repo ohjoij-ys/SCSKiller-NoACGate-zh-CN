@@ -340,7 +340,7 @@ public sealed partial class MainWindow : Window
                 await Task.Delay(800);
                 foreach (var (name, id) in new[] { ("problem", (string?)null), ("problem-thanks", "3f9c2e1a") })
                 {
-                    var d = ((DetailPage)ContentFrame.Content).ProblemDialog(id, "The game still stutters in the first town after a full compile.");
+                    var d = ((DetailPage)ContentFrame.Content).ProblemDialog(id, "全部编译之后，游戏在第一个城镇仍然卡顿。");
                     d.RequestedTheme = theme;
                     _ = App.ShowAsync(d);
                     await Task.Delay(800);

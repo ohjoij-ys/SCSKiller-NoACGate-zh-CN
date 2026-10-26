@@ -41,7 +41,7 @@ public sealed partial class CachePage : Page
     }
 
     void OnFreeOldDriver(object _, RoutedEventArgs __) =>
-        _ = Confirm($"{Vm.FreeText} the new driver no longer uses?", CacheGroupKind.OldDriver, Vm.OldDriverItems, "Free");
+        _ = Confirm($"{Vm.FreeText} 新驱动已不再使用的部分？", CacheGroupKind.OldDriver, Vm.OldDriverItems, "Free");
 
     async Task Confirm(string title, CacheGroupKind kind, IReadOnlyList<CacheItem> items, string action = "删除")
     {

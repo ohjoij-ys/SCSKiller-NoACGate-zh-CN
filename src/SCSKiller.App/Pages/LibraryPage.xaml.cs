@@ -154,14 +154,14 @@ public sealed partial class LibraryPage : Page
         }
         if (App.Core.HiddenGames.Any(g => g.Id == added.Game.Id))
         {
-            await Message("已从你的游戏库隐藏", $"You removed {added.Game.Name}. Show hidden brings it back.");
+            await Message("已从你的游戏库隐藏", $"你移除了 {added.Game.Name}。打开「显示隐藏项」可以让它回来。");
             return;
         }
         var listed = App.Core.Games.Any(s => s.Game.Id == added.Game.Id);
         var where = added.Game.Store == Store.Manual ? "你已添加过它" : $"SCSKiller 已在 {Fmt.StoreName(added.Game)} 找到它";
-        if (listed && await App.ConfirmAsync(this, "游戏已在库中", $"{added.Game.Name} is in the list: {where}.", "Open", ContentDialogButton.Primary))
+        if (listed && await App.ConfirmAsync(this, "游戏已在库中", $"{added.Game.Name} 已在列表中：{where}。", "Open", ContentDialogButton.Primary))
             App.Main.Navigate(typeof(DetailPage), added.Game.Id);
-        else if (!listed) await Message("游戏已在库中", $"{added.Game.Name}: {where}. Refresh the library to see it.");
+        else if (!listed) await Message("游戏已在库中", $"{added.Game.Name}：{where}。刷新游戏库即可看到。");
     }
 
     Task Message(string title, string text) => App.ShowAsync(new ContentDialog

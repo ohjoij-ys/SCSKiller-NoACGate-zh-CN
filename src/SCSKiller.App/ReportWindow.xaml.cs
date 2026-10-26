@@ -96,7 +96,7 @@ public sealed partial class ReportWindow : Window
             : "SCSKiller 编译着色器前后的卡顿对比";
         if (C.Dx11)   // no ready share and no shader split: every frame of 50 ms or more
         {
-            (LabelStutters.Text, LabelReady.Text, LabelWorst.Text) = ("STUTTERS", "卡顿总时长", "WORST STUTTER");
+            (LabelStutters.Text, LabelReady.Text, LabelWorst.Text) = ("卡顿次数", "卡顿总时长", "最长卡顿");
             TileStutters.Text = $"{C.Before.Hitches:N0}  →  {C.After.Hitches:N0}";
             TileReady.Text = $"{C.Before.HitchSeconds:0.0} s  →  {C.After.HitchSeconds:0.0} s";
             TileWorst.Text = $"{Ms(C.Before.WorstHitchMs)}  →  {Ms(C.After.WorstHitchMs)}";
@@ -127,7 +127,7 @@ public sealed partial class ReportWindow : Window
 
         Details.Children.Clear();
         Details.RowDefinitions.Clear();
-        Row("Details", "Before", "After", header: true);
+        Row("项目", "编译前", "编译后", header: true);
         Row("游玩时长", Clock(C.Before.PlaySeconds), Clock(C.After.PlaySeconds));
         if (C.Dx11)
         {
@@ -147,7 +147,7 @@ public sealed partial class ReportWindow : Window
             Row("最长的一次着色器编译卡顿", Ms(C.Before.WorstStutterMs), Ms(C.After.WorstStutterMs));
         }
         Row("1% 低帧", $"{C.Before.Low1PctFps:0} fps", $"{C.After.Low1PctFps:0} fps");
-        Row("Average", $"{C.Before.AvgFps:0} fps", $"{C.After.AvgFps:0} fps",
+        Row("平均帧", $"{C.Before.AvgFps:0} fps", $"{C.After.AvgFps:0} fps",
             note: "1% 低帧与平均值从游戏首帧算起，包含菜单和加载，因此仅启动更快也会使其上升。");
         if (!C.Dx11)
             Row("其他卡顿（与着色器无关）", Count(C.Before.OtherHitches, C.Before), Count(C.After.OtherHitches, C.After),
@@ -156,9 +156,9 @@ public sealed partial class ReportWindow : Window
         Notes.Children.Clear();
         foreach (var n in C.Notes) Note(n);
         if (C.Dx11) Note("在 DirectX 11 上，加载画面的卡顿也计入；第二次运行时流式加载卡顿会减少。");
-        if (C.AlreadySmooth) Note($"{game} barely stuttered from shaders on this PC even before the compile.");
+        if (C.AlreadySmooth) Note($"这台电脑上，{game} 在编译前就几乎没有着色器造成的卡顿。");
         // the D3D11 recorder records input layouts on AMD only, frame times only on NVIDIA
-        Note(C.Dx11 && App.Core.Vendor.Vendor != GpuVendor.Amd ? "依据游戏文件编译。" : "Compiled from the game's files and your before run's recording.");
+        Note(C.Dx11 && App.Core.Vendor.Vendor != GpuVendor.Amd ? "依据游戏文件编译。" : "依据游戏文件和你「编译前」那次运行录到的数据编译。");
         Note("除非你分享图片，帧时间和本报告只保存在本机。");
     }
 
@@ -175,7 +175,7 @@ public sealed partial class ReportWindow : Window
     void Footer()
     {
         var (b, a) = BeforeAfter.PlayMinutes(C);
-        string play = b == a ? $"{b} min of play each" : $"{b} and {a} min of play";
+        string play = b == a ? $"各玩了 {b} 分钟" : $"分别玩了 {b} 分钟和 {a} 分钟";
         string? size = Size(r.Before.SwapChain) is { } s && s == Size(r.After.SwapChain) ? s : null;
         CardFooter.Text = string.Join("  ·  ", new[]
         {
@@ -225,9 +225,9 @@ public sealed partial class ReportWindow : Window
 
     /// <summary>A count, and per 10 minutes of play when the two runs' play times differ by more than 10%.</summary>
     string Count(long n, RunStats run) => $"{n:N0}" + (C.PerTenMinutes && run.PlaySeconds > 0 ? $"（每 10 分钟 {n * 600 / run.PlaySeconds:0.#} 次）" : "");
-    static string Rt(CreateStats c) => $"{c.StateObjectsReady:N0} of {c.StateObjectsReady + c.StateObjectsCompiled:N0}";
+    static string Rt(CreateStats c) => $"{c.StateObjectsReady:N0} / {c.StateObjectsReady + c.StateObjectsCompiled:N0}";
     static string Pct(double? share) => share is { } s ? $"{s * 100:0}%" : Format.Dash;
-    static string Ms(double ms) => ms <= 0 ? "none" : ms >= 1000 ? $"{ms / 1000:0.0} s" : $"{ms:0} ms";
+    static string Ms(double ms) => ms <= 0 ? "无" : ms >= 1000 ? $"{ms / 1000:0.0} s" : $"{ms:0} ms";
     static string Clock(double seconds) => $"{(int)(seconds / 60)}:{(int)seconds % 60:00}";
 
     /// <summary>The card as a 1200 × 675 PNG, whatever the display scale (doc 6.3).</summary>
@@ -250,7 +250,7 @@ public sealed partial class ReportWindow : Window
     {
         try
         {
-            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, SuggestedFileName = FileName($"{game} before and after") };
+            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, SuggestedFileName = FileName($"{game} 前后对比") };
             picker.FileTypeChoices.Add("PNG 图片", [".png"]);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
             if (await picker.PickSaveFileAsync() is not { } file) return;
@@ -324,7 +324,7 @@ public sealed partial class ReportWindow : Window
         try { Process.Start(new ProcessStartInfo(url(text)) { UseShellExecute = true })?.Dispose(); }
         catch (Exception e) { Tell("无法打开浏览器：" + BeforeAfterUi.Describe(e), InfoBarSeverity.Error); return; }
         Tell("按 Ctrl+V 粘贴以加入图片", InfoBarSeverity.Informational);
-        App.Hint("图片已复制", "Press Ctrl+V in the post to add it.");
+        App.Hint("图片已复制", "在帖子里按 Ctrl+V 可以把它贴上去。");
     }
 
     async void OnRecordAgain(object _, RoutedEventArgs __)
