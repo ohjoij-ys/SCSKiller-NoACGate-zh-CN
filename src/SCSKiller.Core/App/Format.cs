@@ -31,7 +31,7 @@ public static class Format
         return (NoPlay(f.Low1PctFps) ? $"{Duration(f.Duration)}, {NoPlayText}." : $"{Duration(f.Duration)}: " + (shader.Count == 0 ? "无着色器编译卡顿"
                 : $"{shader.Count:N0} 次卡顿来自着色器编译（最长 {Ms(shader.Max(h => h.Ms))}）")
             + (other == 0 ? "，没有其他卡顿" : $"，其他卡顿 {other:N0} 次")
-            + $"，最低 1% 帧率 {f.Low1PctFps:0} fps。")
+            + $"，1% 低帧 {f.Low1PctFps:0} fps。")
             + (compiling.Count + loading == 0 ? "" : "加载阶段：" + string.Join("，", new[]
             {
                 compiling.Count == 0 ? null : $"{compiling.Count:N0} 个慢帧在编译着色器（最长 {Ms(compiling.Max(h => h.Ms))}）",
@@ -114,7 +114,7 @@ public static class Format
             GameStatus.NeedsRecording when Starts("the recording has no draws") => "请进入游戏世界并游玩",
             GameStatus.NeedsRecording when s.RecorderInstalled => Sentence(FirstClause(r)),
             GameStatus.NeedsRecording when s.RecorderEffective && Games.Collections.RecordedBy(s.Game.Id) != null => "录制器已开启：请游玩约 5 分钟",   // its collection's first game's
-            GameStatus.NeedsRecording when s.RiskEligible => "在其页面录制一次会话",
+            GameStatus.NeedsRecording when s.RiskEligible => "在游戏页面录制一次会话",
             GameStatus.NeedsRecording when s.RecorderSkip != null => "录制器当前不可用",
             GameStatus.NeedsRecording => "开启录制并游玩",
             GameStatus.Ready when Has("ray-traced effects aren't compiled") => !s.AnyAntiCheat || s.RiskEligible ? "光追效果尚未编译" : $"光追被 {ScsKiller.AntiCheatName(s)} 阻止",
@@ -127,7 +127,7 @@ public static class Format
             GameStatus.Ready when Starts("compiles every DirectX 11 shader") => "DirectX 11",
             GameStatus.Ready => null,
             _ when r == Games.BootPrecompiles.Reason => "在主菜单阶段构建着色器",
-            _ when s.ShaderModBlocks => $"{s.ShaderMod} 改变了其所有管线",
+            _ when s.ShaderModBlocks => $"{s.ShaderMod} 会改变此游戏的全部管线",
             _ when s.AnyAntiCheat && Starts("需要一次录制，") => $"被 {ScsKiller.AntiCheatName(s)} 阻止" + (s.InCommunityDb == true ? " · " + InDb(r) : ""),
             _ when Has(ScsKiller.ManualNoRecording) => "需要录制：请确认其目录",
             _ when s.Engine?.Encrypted == true => null,   // the title: "游戏文件已加密"
@@ -190,7 +190,7 @@ public static class Format
             var at = rest.IndexOf(", the warm filled the cache of ", StringComparison.Ordinal);
             return at > 0 ? $"游戏以 {rest[..at]} 运行，而预编译填充的是另一个 exe 的缓存（驱动按 exe 名的大小写区分缓存）" : "exe 文件名的大小写变了";
         }
-        if (r.StartsWith("Maximum mode", StringComparison.Ordinal)) return "最大模式：所有着色器配对仍待编译";
+        if (r.StartsWith("Maximum mode", StringComparison.Ordinal)) return "最大模式：所有着色器两两组合仍待编译";
         if (r.StartsWith("SCSKiller can now compile more", StringComparison.Ordinal)) return "SCSKiller 现在可以为此游戏编译更多内容";
         const string More = "SCSKiller can now compile ";
         if (r.StartsWith(More, StringComparison.Ordinal))

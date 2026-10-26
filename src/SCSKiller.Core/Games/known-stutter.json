@@ -5,7 +5,7 @@
       "name": "STAR WARS Jedi: Survivor",
       "ids": ["ea:198300", "steam:1774580"],
       "severity": "severe",
-      "reason": "直到第 4 次补丁仍有着色器编译卡顿；SCSKiller 将其启动时的着色器编译耗时从 813 秒降至 3.2 秒",
+      "reason": "到第 4 个补丁为止仍有着色器编译卡顿；SCSKiller 把它启动时的着色器编译耗时从 813 秒压到 3.2 秒",
       "source": "https://www.dsogaming.com/news/star-wars-jedi-survivor-still-has-traversal-shader-compilation-stutters/",
       "date": "2026-09-26"
     },
@@ -101,7 +101,7 @@
       "name": "ELDEN RING",
       "ids": ["steam:1245620"],
       "severity": "moderate",
-      "reason": "Digital Foundry 将启动停顿归因于着色器编译，但 Valve 发现 Steam Deck 上多数严重卡顿另有原因。SCSKiller 在一次编译后的游玩中测得 37 帧耗时至少 50 毫秒：2 帧伴随光追管线编译，35 帧没有对应编译",
+      "reason": "Digital Foundry 将启动停顿归因于着色器编译，但 Valve 发现 Steam Deck 上多数严重卡顿另有原因。SCSKiller 在一次编译后的游玩中测得 37 帧的帧耗时至少 50 毫秒：其中 2 帧同时有光追管线在编译，其余 35 帧没有",
       "source": "https://www.digitalfoundry.net/articles/digitalfoundry-2022-yes-valve-really-did-fix-elden-ring-for-steam-deck",
       "date": "2026-10-04"
     },
@@ -109,7 +109,7 @@
       "name": "FINAL FANTASY VII REBIRTH",
       "ids": ["steam:2909400"],
       "severity": "severe",
-      "reason": "SCSKiller 在冷缓存下的 3.3 分钟游玩中测得 73 次使游戏阻塞至少 20 毫秒的管线编译；提前编译后未再出现。此游戏的 DX12 着色器编译卡顿已有充分记录",
+      "reason": "冷缓存下玩 3.3 分钟，测得 73 次至少持续 20 毫秒的卡顿；提前编译后这些卡顿消失。此游戏的 DirectX 12 着色器编译卡顿已有充分记录",
       "source": "https://www.dsogaming.com/mods/modder-attempts-to-fix-the-dx12-shader-compilation-stutters-in-final-fantasy-7-remake-rebirth/",
       "date": "2026-09-25"
     },
@@ -117,7 +117,7 @@
       "name": "Immortals of Aveum",
       "ids": [],
       "severity": "moderate",
-      "reason": "据 Digital Foundry，UE5 5.1 至 5.4 的自带着色器预编译系统若缺少开发者额外适配，不能正常发挥作用；此游戏继承了这一引擎问题",
+      "reason": "据 Digital Foundry，UE5 5.1 至 5.4 自带的着色器预编译系统如果没有开发者额外适配就无法正常工作；此游戏也受此问题影响",
       "source": "https://wccftech.com/unreal-engine-5-shader-compilation-systems-prevent-stuttering-not-work-properly/",
       "date": "2026-09-26"
     },

@@ -38,7 +38,7 @@
                             <TextBlock Text="{x:Bind Vm.SourceStatus, Mode=OneWay}" Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                         </StackPanel>
                         <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Text="提前把游戏着色器编译到显卡驱动缓存，减少首次游玩时的着色器编译卡顿。" />
+                                   Text="把游戏的着色器预先编译进显卡驱动缓存，这样首次游玩时就不会因编译而卡顿。" />
                         <TextBlock Margin="0,8,0,0" Style="{StaticResource Secondary}">
                             <Run Text="许可证：" FontWeight="SemiBold" /><Run Text="GPL-3.0-or-later；Oodle、Windows App SDK 和显卡驱动库的附加许可见 LICENSE-EXCEPTION.txt。" />
                         </TextBlock>

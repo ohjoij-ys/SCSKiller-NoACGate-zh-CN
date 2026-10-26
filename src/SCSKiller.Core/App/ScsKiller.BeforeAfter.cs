@@ -13,13 +13,13 @@ public sealed partial class ScsKiller
     public const string NotCompiledNote = "编译没有跑完，请重新编译";
     public const string StoppedNote = "编译已停止";
     public const string DirtyNote = "编译之后游戏运行过，继续会先重新编译";
-    public const string DriverRedoNote = "驱动已更新，请重做「录制前」那次运行";
-    public const string BuildRedoNote = "游戏已更新，请重做「录制前」那次运行";
+    public const string DriverRedoNote = "驱动已更新，请重做“录制前”那次运行";
+    public const string BuildRedoNote = "游戏已更新，请重做“录制前”那次运行";
     public const string RecorderNotReadyNote = "录制器尚未就绪，这次运行无法测量：";
-    public const string OldCacheNote = "旧的驱动缓存文件仍被占用：请关闭游戏，重做「录制前」那次运行";
-    public const string OldCacheRedoNote = "旧的驱动缓存文件仍被占用，请重做「录制前」那次运行";
-    public const string UnseenRedoNote = "「录制前」那次运行时 SCSKiller 没有在运行，因此无法核对驱动缓存：请重做一次";
-    public const string FramesStoppedNote = "帧生成开始时帧时间记录就停止了，这次运行无法测量。请为「录制前」和「录制后」关闭帧生成";
+    public const string OldCacheNote = "旧的驱动缓存文件仍被占用：请关闭游戏，重做“录制前”那次运行";
+    public const string OldCacheRedoNote = "旧的驱动缓存文件仍被占用，请重做“录制前”那次运行";
+    public const string UnseenRedoNote = "“录制前”那次运行时 SCSKiller 没有在运行，因此无法核对驱动缓存：请重做一次";
+    public const string FramesStoppedNote = "帧生成开始时帧时间记录就停止了，这次运行无法测量。请为“录制前”和“录制后”关闭帧生成";
     public const string RestoreFailedNote = "AMD 的 DirectX 11 缓存文件中有 {0} 个没能放回：它们在 {1}";
     // PlayReadEvery: every poll, so the app's countdown stays within a poll of the one in the game, which counts live
     static readonly TimeSpan NoStartAfter = TimeSpan.FromMinutes(5), PlayReadEvery = TimeSpan.FromSeconds(2);
@@ -38,7 +38,7 @@ public sealed partial class ScsKiller
         // NVIDIA, DirectX 11: the recorder isn't in the game, the pair puts it in (Frames11)
         var frames11 = Frames11(s.Engine, Vendor.Caps);
         var skip = frames11 ? PairRecorderSkip(s, rec) : s.RecorderSkip;
-        return !Settings.BeforeAfter ? "设置中已关闭「录制前后对比」"
+        return !Settings.BeforeAfter ? "设置中已关闭“录制前后对比”"
             : s.Engine?.GraphicsApi is not { } api || !api.Contains("D3D12") && !api.StartsWith("D3D11") ? "仅支持 DirectX 12 和 DirectX 11 的游戏"
             : s.AnyAntiCheat ? "不支持有反作弊的游戏"
             : s.NoStutter != null ? "不支持没有着色器编译卡顿的游戏"
@@ -121,7 +121,7 @@ public sealed partial class ScsKiller
             }
             return;
         }
-        if (rec.BeforeAfter is not { Stage: AfterReady or BeforeAfterStage.Compiling } ba) throw new InvalidOperationException("没有可继续的「录制后」");
+        if (rec.BeforeAfter is not { Stage: AfterReady or BeforeAfterStage.Compiling } ba) throw new InvalidOperationException("没有可继续的“录制后”");
         if (Voided(s.Game, ba) is { } why) throw new InvalidOperationException(why);
         Idle(s.Game);
         ba.Dirty |= LaunchesAfter(s.Game, rec, ba.ArmedAt).After.Count > 0;   // played while the app was closed
@@ -204,7 +204,7 @@ public sealed partial class ScsKiller
     /// after run measures.</summary>
     string? PairHoldsCache(string gameId, bool compiling = false) => Store.LoadGame(gameId).BeforeAfter?.Stage switch
     {
-        BeforeArmed or BeforePlaying when compiling => "「录制前」那次还没做，现在编译请先结束录制前后对比",
+        BeforeArmed or BeforePlaying when compiling => "“录制前”那次还没做，现在编译请先结束录制前后对比",
         BeforeAfterStage.Compiling or AfterReady or AfterArmed or AfterPlaying when !compiling => "录制前后对比需要这份缓存，请先结束它",
         _ => null,
     };

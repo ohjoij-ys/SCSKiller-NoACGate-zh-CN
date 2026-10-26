@@ -31,7 +31,7 @@ static class Fmt
     public static string When(DateTimeOffset at)
     {
         var t = at.LocalDateTime;
-        return t.Date == DateTime.Today ? $"今天 {t:t}" : t.Date == DateTime.Today.AddDays(-1) ? $"昨天 {t:t}" : $"on {t:d}";
+        return t.Date == DateTime.Today ? $"今天 {t:t}" : t.Date == DateTime.Today.AddDays(-1) ? $"昨天 {t:t}" : $"{t:M月d日}";
     }
     public static string KeptSize(KeptCache k) => $"{Format.Bytes(k.Bytes)} · " + (k.Frees > 0 ? $"可释放 {Format.Bytes(k.Frees)}" : "takes no extra space");
     public static string Vendor(GpuVendor v) => v switch
@@ -333,7 +333,7 @@ public sealed class GameRow(GameState s, bool queued = false, bool compiling = f
     public string StatusText => s.Status switch
     {
         _ when s.CompileUnreached => "编译没有帮助",
-        _ when PartlyCompiled => "部分已编译",
+        _ when PartlyCompiled => "部分管线被驱动拒绝",
         _ when ScsKiller.NotReached(s.StatusReason) => "尚未进行到这里",
         GameStatus.Warmed when Partly => "部分已预编译",
         GameStatus.Warmed when s.Plan?.RecordedOnly == true => "已预编译（仅录制的管线）",
@@ -342,7 +342,7 @@ public sealed class GameRow(GameState s, bool queued = false, bool compiling = f
         _ when ScsKiller.NeedsOfflineSession(s) => "需要离线会话",
         GameStatus.NeedsRecording when ScsKiller.NeverRecorded(s) => ScsKiller.NothingRecordedTitle,
         GameStatus.NeedsRecording => ScsKiller.RecordedEnough(s) ? "需要录制" : "需要 5 分钟录制",
-        GameStatus.Stale => "需要重编",
+        GameStatus.Stale => "需要重新编译",
         _ when s.StatusReason == ScsKiller.CheckingReason => "正在检查…",
         _ when s.StatusReason == ScsKiller.NotCheckedReason => "未检查",
         _ when s.StatusReason == ScsKiller.CantReachReason => "不兼容",
@@ -644,7 +644,7 @@ public sealed class LibraryVm : Bindable
     void ShowCache((CacheUsage Usage, CacheLimit? Limit, long? Capped, long OldDriver) c)
     {
         var (usage, limit, capped, old) = c;
-        OldDriverNote = old >= OldDriverShown ? $"{Format.Bytes(old)} 新驱动已不再使用" : null;
+        OldDriverNote = old >= OldDriverShown ? $"新驱动已弃用 {Format.Bytes(old)}" : null;
         CacheUsed = (usage.UpperBound ? "≤ " : "") + Format.Bytes(usage.BytesOnDisk);
         CacheLimitText = limit is null ? "上限未知" : limit.Bytes is { } lb ? capped is { } cb ? $"· DirectX 12 {Format.Bytes(cb)} / {Format.Bytes(lb)} 上限" : $"/ {Format.Bytes(lb)} 上限" : "无上限";
         CachePercent = limit?.Bytes is { } max && max > 0 ? Math.Min(100, 100.0 * (capped ?? usage.BytesOnDisk) / max) : 0;
@@ -747,7 +747,7 @@ public sealed class DetailVm(string id) : Bindable
         _ when s.CompileUnreached => Format.ReasonText(s.StatusReason) + (s.WarmedAt != null ? ". " + Sentence(ScsKiller.ClearForGameNote) : ""),
         _ when ScsKiller.IsPartlyCompiled(s) => ScsKiller.RefusedNote(s) + "。SCSKiller 更新后可能修复",
         GameStatus.Warmed when ScsKiller.IsPartlyWarmed(s) => s.StatusReason,
-        GameStatus.Warmed => $"已为 {(ScsKiller.BothApis(s.Plan) ? "DirectX 11 和 DirectX 12，" : "")}驱动 {s.WarmedDriverVersion} 编译" + (s.WarmedAt is { } t ? $"，时间 {t.LocalDateTime:d}" : "")
+        GameStatus.Warmed => $"已为 {(ScsKiller.BothApis(s.Plan) ? "DirectX 11 和 DirectX 12，" : "")}驱动 {s.WarmedDriverVersion} 编译" + (s.WarmedAt is { } t ? $"（{t.LocalDateTime:d}）" : "")
             + (RtAfter ? ". " + Sentence(ScsKiller.RtAfterRecordingNote) : ""),
         // a cache here: played since a clear or a stopped compile; then the planner's note when the row has one to say
         GameStatus.Ready => (s.CacheOnDisk > 0 ? $"尚未完全编译：其中 {Format.Bytes(s.CacheOnDisk)} 已在驱动缓存中"
@@ -770,7 +770,7 @@ public sealed class DetailVm(string id) : Bindable
     public string DbTeaser => $"社区数据库中已有其他玩家录制的 {s.CommunityDbPsos:N0} 条管线。Patreon 支持者无需录制即可编译。";
     public string DbTeaserLink => App.Account.SignedIn ? "上游 Patreon 会员资格" : "使用 Patreon 登录";
     public bool CanCompile => s.Status is GameStatus.Ready or GameStatus.Warmed or GameStatus.Stale || RtPartial;
-    public const string MaxCompileWhy = "编译此游戏着色器的所有组合，而不只是每种一次。耗时更长、占用磁盘更多，但游玩时需要编译的着色器可能更少。在 AMD 上效果最明显。";
+    public const string MaxCompileWhy = "把此游戏着色器的所有组合都编译一遍，而不是每个组合只编一次。耗时更长、占用磁盘更多，但游玩时需要现编的着色器更少。在 AMD 上效果最明显。";
     public string? GuessNote => s.Engine is { } e && s.Status is GameStatus.Ready or GameStatus.Warmed or GameStatus.Stale ? ScsKiller.GuessNote(e) : null;
     public bool HasGuessNote => GuessNote != null;
     public string? DeliveryLine => ScsKiller.DeliveryLine(s);
@@ -790,10 +790,10 @@ public sealed class DetailVm(string id) : Bindable
     public string PlayText => s.Playing ? "运行中" : "开始游戏";
     public string PlayTip => s.Playing ? $"{s.Game.Name} is running" : CompilingSoon ? Fmt.CompilingTip : Fmt.PlayVia(s.Game);
     public bool IsManual => s.Game.Store == Store.Manual;
-    public string RemoveTip => IsManual ? "从游戏库移除此游戏。其录制器会从游戏目录移除，游戏自身文件保留。"
-        : "隐藏此游戏。其文件、存档和已编译缓存都会保留。";
+    public string RemoveTip => IsManual ? "从游戏库移除此游戏。录制器会从游戏目录移除，游戏文件本身不受影响。"
+        : "隐藏此游戏。游戏文件、存档和已编译缓存都会保留。";
     /// <summary>The confirmation's text for a store's game, which is hidden.</summary>
-    public string HideNote => "它将不出现在列表中，也不会被自动编译。其文件、存档和已编译缓存都会保留。在游戏库页面点“显示已隐藏”可恢复。"
+    public string HideNote => "它将不出现在列表中，也不会被自动编译。游戏文件、存档和已编译缓存都会保留。在游戏库页面点“显示已隐藏”可恢复。"
         + (BaInProgressAny ? " 进行中的前后对比录制会被取消。" : "")
         + (s.RecorderInstalled ? " 录制器会先被关闭并从游戏目录移除。" : "");
     public async void Play()
@@ -870,7 +870,7 @@ public sealed class DetailVm(string id) : Bindable
     public bool? LeftOutPending { get; set; }
     public bool CarefulOn => CarefulPending ?? s.Careful?.On == true;
     public bool CanToggleCareful => CarefulPending == null && !Queued;
-    public string CarefulNote => "Only for games whose compile fails. " + (s.Careful is { Recorded: 0 } ? "分批使用少量线程编译游戏中录制的管线，让驱动保留更多缓存。此游戏尚无录制数据，暂时没有可谨慎编译的内容。"
+    public string CarefulNote => "Only for games whose compile fails. " + (s.Careful is { Recorded: 0 } ? "分批使用少量线程编译游戏中录制的管线，让驱动保留更多结果。此游戏尚无录制数据，暂时没有可谨慎编译的内容。"
         : $"分批使用 {ScsKiller.AmdCarefulThreads} 个线程编译游戏中录制的管线，让驱动保留更多结果；其余管线全速编译。"
           + (s.Careful?.Estimate is { } est ? $" 约 {Format.Duration(est)}" + (s.Careful.On || Fmt.CompileTime(s) is not { } fast ? "." : $" instead of {Format.Duration(fast)}.") : ""))
         + (s.Careful?.LaunchCompiled is { } lc ? $" 上次编译后，游戏首次启动仍自行编译了 {lc * 100:0}% 的管线。" : "");
@@ -883,7 +883,7 @@ public sealed class DetailVm(string id) : Bindable
         { Unkept: > 0 and var n, HeldBy: var who } => $"{n} 个文件正被 {who ?? "其他程序"} 使用，未另存。",
         { Frees: > 0 } when s.AntiCheat != AntiCheat.None => "游戏启动后几秒内放回。请保持 SCSKiller 运行。",   // no Play button, VAC keeps it
         { Frees: > 0 } => "驱动删除了其中一部分。按下“开始游戏”时放回。",
-        { PutBackAt: { } at, Late: true } => $"已于 {Fmt.When(at)} 放回，当时游戏已启动。部分着色器可能又被编译了一次。",
+        { PutBackAt: { } at, Late: true } => $"已于 {Fmt.When(at)} 放回，当时游戏已启动。部分着色器可能被重新编译了一次。",
         { PutBackAt: { } at } => $"已于 {Fmt.When(at)} 放回，早于游戏启动。",
         _ => "现已在驱动缓存中。",
     };
@@ -919,7 +919,7 @@ public sealed class DetailVm(string id) : Bindable
     // on for every game in Settings: the per-game switch changes nothing, so it isn't offered
     public bool HasMaximumLine => MaximumSuggested || s.MaximumForGame == true && !App.Core.Settings.MaximumPlans;
     public string MaximumLine => MaximumSuggested
-        ? "最大模式对此游戏有效：它还会编译着色器的所有两两组合，因此游玩时需要编译的更少。"
+        ? "最大模式对此游戏有效：它还会把着色器的所有两两组合都编译一遍，因此游玩时需要现编的更少。"
         : "此游戏已开启最大模式。编译耗时更长，占用磁盘更多。";
     public string? MaximumNote => string.Join(" ", new[] { s.MaximumSuggestion is { Length: > 0 } note ? note : null,
         MaximumSuggested && s.MaximumAddsBytes is { } adds ? $"在 AMD 上，它最多会给驱动共享的 {Format.Bytes(AmdAppCache.DxcCacheCap)} 缓存增加 {Format.Bytes(adds)}。" : null }.OfType<string>()) is { Length: > 0 } t ? t : null;
@@ -930,7 +930,7 @@ public sealed class DetailVm(string id) : Bindable
     // as Disk space shows it
     public string ClearCacheText => s.DiskBytes != null ? $"清空缓存（{DiskValue}）" : "清理缓存";
     public string ClearCacheTip => BaInProgressAny ? BaBusyTip : HasCache ? "删除此游戏的着色器缓存（驱动和 Windows 缓存；可选择连游戏自带缓存一起删除），下次启动将重新生成"
-        : "SCSKiller 首次编译此游戏或检测到其运行时，会识别对应的驱动缓存文件";
+        : "SCSKiller 首次编译此游戏或检测到它在运行时，会识别对应的驱动缓存文件";
 
     // Rate this compile (CompatReport) and what players with a similar system reported (CompatFeed)
     string? ReportWhyNot => CompatReport.WhyNot(s, ScsKiller.PackGpu(App.Core.Vendor.Vendor));
@@ -940,7 +940,7 @@ public sealed class DetailVm(string id) : Bindable
     public bool HasSimilarWarning => s.Similar == SimilarSystems.Warning;
     public string SimilarText => s.Similar switch
     {
-        SimilarSystems.Helped => "配置相近的玩家反馈：编译消除了或减轻了此游戏的卡顿。",
+        SimilarSystems.Helped => "配置相近的玩家反馈：编译能消除或减轻此游戏的卡顿。",
         SimilarSystems.NoHelp => "配置相近的玩家反馈：编译对此游戏没有帮助。",
         SimilarSystems.Warning => $"配置相近的玩家反馈：编译后 {Name} 运行更差。",
         _ => "",
@@ -1005,7 +1005,7 @@ public sealed class DetailVm(string id) : Bindable
     bool Enough => ScsKiller.RecordedEnough(s);
     public string RecordTipTitle => Enough ? "继续录制游玩过程" : "录制约 5 分钟游玩过程";
     public string RecordTip => RtPartial || RtAfter ? $"{TurnOnAndPlay} with ray tracing on{(Enough ? "" : " for about 5 minutes")}. " + ScsKiller.RtWhy(App.Core.Vendor.Caps, s.Engine)
-            + (RtAfter ? "其他部分已编译。" : "其他部分已经可以从游戏文件编译。")
+            + (RtAfter ? "其他部分已编译。" : "其余部分已能直接从游戏文件编译。")
         : Enough ? Sentence(s.StatusReason) + "."
         : $"{TurnOnAndPlay} as usual for about 5 minutes. SCSKiller learns this game's shader layout from it, then it can compile.";
     // a collection's other game is recorded by its first game's recorder, switched on that game's page
@@ -1199,7 +1199,7 @@ public sealed class DetailVm(string id) : Bindable
           + (ScsKiller.RefusedLine(s) is { } refused ? " " + refused : "")
           + (OnDisk is { } c ? $"占用磁盘 {Format.Bytes(c)}。" : "")
           + " " + OwnShaderStep
-        : s.LastWarmTime is { } last ? $"它的着色器缓存已被清除。上次编译耗时 {Format.Duration(last)}。"
+        : s.LastWarmTime is { } last ? $"游戏着色器缓存已被清除。上次编译耗时 {Format.Duration(last)}。"
         : (s.EstimatedWarmTime is { } est ? $"It takes about {Format.Duration(est)} and runs in the background, so you can keep using the PC." : "编译在后台运行，可继续使用电脑。")
           + (s.EstimatedCacheBytes is { } b ? $"预计增加约 {Format.Bytes(b)} 驱动着色器缓存。" : "");
     // no game file says whether a game runs its own precompile at startup: said on every compiled game's page, not its row
@@ -1212,7 +1212,7 @@ public sealed class DetailVm(string id) : Bindable
         {
             NotInGame > 0 ? $"{NotInGame:N0} 条已跳过：其着色器不在此版本中。无需处理。" : null,
             Crashed > 0 ? $"{Crashed:N0} 条已跳过：会导致显卡驱动崩溃。游戏用到时会自行编译。" : null,
-            DriverSkipped > 0 ? $"{DriverSkipped:N0} 条本次跳过：显卡驱动在它们或其依赖项上崩溃或卡死。" : null,
+            DriverSkipped > 0 ? $"{DriverSkipped:N0} 条本次跳过：显卡驱动在处理它们或它们的依赖项时崩溃或卡死。" : null,
             Unbuilt > 0 ? $"{Unbuilt:N0} 条已跳过：SCSKiller 暂时无法构建。" : null,
             NeedsRecording > 0 ? $"{NeedsRecording:N0} 条需要在本机录制：游戏或某个 mod 在运行时才生成这些着色器，因此不在任何游戏文件中。请开启“游玩时录制”游玩一次以捕获它们。" : null,
         }.OfType<string>());
@@ -1622,7 +1622,15 @@ public sealed class SettingsVm : Bindable
     static string DriveOf(CacheUsage? u) => Path.GetPathRoot(u?.Path is { Length: > 0 } p ? GameFiles.FinalPath(p) ?? p : null) is { Length: > 0 } r ? r
         : Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))!;
     string? drive;   // read with the usage: resolving a link opens the folder
-    public string FreeLabel => $"释放 {(drive ?? DriveOf(null)).TrimEnd('\\')} 上的空间";
+    public string FreeLabel
+    {
+        get
+        {
+            var d = drive ?? DriveOf(null);
+            var root = d.TrimEnd('\\', ':');   // "C:\" -> "C"
+            return root.Length == 1 ? $"释放 {root} 盘空间" : $"释放 {d.TrimEnd('\\')} 上的空间";
+        }
+    }
     public string Free => read?.Free ?? Format.Dash;
 
     public int SizeIndex { get; set; } = 2;

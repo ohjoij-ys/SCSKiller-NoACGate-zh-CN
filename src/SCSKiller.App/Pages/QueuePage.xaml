@@ -34,7 +34,7 @@
                     <TextBlock Text="编译队列" Style="{StaticResource TitleTextBlockStyle}" />
                     <TextBlock Text="{x:Bind Vm.Summary, Mode=OneWay}" Style="{StaticResource Secondary}" />
                     <TextBlock Text="{x:Bind Vm.PlanChecks, Mode=OneWay}" Visibility="{x:Bind Vm.HasPlanChecks, Mode=OneWay}" Style="{StaticResource Caption}"
-                               ToolTipService.ToolTip="更新后，SCSKiller 会在后台重新生成已编译游戏的计划，此过程不会进行编译。若有新增的可编译内容，会在游戏库中显示。" />
+                               ToolTipService.ToolTip="更新后，SCSKiller 会在后台重新生成已编译游戏的计划，期间不会编译任何内容。若有新增的可编译内容，会在游戏库中显示。" />
                     <TextBlock Text="编译在游戏外进行，但使用游戏的进程名。编译期间请保持游戏关闭。"
                                Style="{StaticResource Caption}" TextWrapping="Wrap" />
                 </StackPanel>
@@ -48,7 +48,7 @@
                     </Button>
                     <Button Content="{x:Bind Vm.PauseText, Mode=OneWay}" Click="OnPause" Visibility="{x:Bind Vm.HasCurrent, Mode=OneWay}" />
                     <Button Content="停止" Click="OnStop" Visibility="{x:Bind Vm.HasCurrent, Mode=OneWay}"
-                            ToolTipService.ToolTip="完成正在进行的编译后停止。重新加入游戏即可从中断处继续。" />
+                            ToolTipService.ToolTip="先让正在跑的编译跑完，然后停止。重新加入队列即可从中断处继续。" />
                 </StackPanel>
             </Grid>
 
@@ -241,7 +241,7 @@
                             AutomationProperties.Name="编译线程" />
                     <RadioButtons Header="优先级" SelectedIndex="{x:Bind Vm.Priority, Mode=TwoWay}">
                         <RadioButton Content="低于正常：速度较快，电脑仍可使用" />
-                        <RadioButton Content="仅空闲：其他程序不需要 CPU 时运行" />
+                        <RadioButton Content="仅空闲时：没有其他程序占用 CPU 时运行" />
                     </RadioButtons>
                 </StackPanel>
             </Expander>

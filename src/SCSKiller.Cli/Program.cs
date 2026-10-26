@@ -236,7 +236,7 @@ async Task<int> Status(string? query)
 static string CarefulLine(CarefulCompile? c, PlanStats? plan) => c is not { } x ? "-（仅 AMD）"
     : (x.On ? $"开启：录制的管线最多用 {ScsKiller.AmdCarefulThreads} 个线程分批编译，其余保持全速" : "关闭（使用 compile <game> --careful 开启）")
       + (x.Recorded == 0 && plan is { D3D11Shaders: > 0, Recorded: 0 } ? "；仅对 DirectX 12 有效：此游戏的 DirectX 11 着色器始终全速编译"
-         : x.Recorded == 0 ? "；没有已录制的 DirectX 12 管线，因此不会进行谨慎编译"
+         : x.Recorded == 0 ? "；没有已录制的 DirectX 12 管线，因此不做谨慎编译"
          : x.Estimate is { } t ? $"；预计耗时约 {ScsKiller.Duration(t)}" : "");
 
 static void PrintQueueChanges(ScsKiller k)
@@ -265,7 +265,7 @@ async Task<int> RunQueue(ScsKiller k, IReadOnlyList<GameState> targets, bool whe
     {
         e.Cancel = true;
         cancelled = true;
-        Console.WriteLine("正在停止；进行中的编译会完成，以便驱动写入缓存…");
+        Console.WriteLine("正在停止；正在跑的编译会跑完，以便驱动写入缓存…");
         foreach (var q in k.Queue.Where(q => q.Stage == QueueStage.Waiting)) k.Remove(q.GameId);
         k.StopQueue();
     };
@@ -443,7 +443,7 @@ async Task<int> Record()
     var g = Match(k.Games, args[2]);
     if (args[1] == "clear")
     {
-        if (g.RecordingBytes == 0) return Fail($"{g.Game.Name} has no recording");
+        if (g.RecordingBytes == 0) return Fail($"{g.Game.Name} 还没有录制数据");
         if (!Confirm($"删除 {g.Game.Name} 的录制数据（{Format.Bytes(g.RecordingBytes)}）？已录到的管线会被移除；只有在开启录制后由游戏再次创建时才能重新获得，" +
                      "编译计划会退回到游戏文件可提供的内容。")) return 1;
         k.ClearRecording(g.Game.Id);   // a refusal throws InvalidOperationException: printed as "error: <reason>"
@@ -455,24 +455,24 @@ async Task<int> Record()
         var mod = k.RecorderMod(g.Game.Id);
         k.SetRecordAlongsideMod(g.Game.Id, args[3] == "on");
         var s = k.Games.Single(x => x.Game.Id == g.Game.Id);
-        Console.WriteLine($"record alongside {mod ?? "a mod"}: {args[3]}; recorder {(s.RecorderInstalled ? "installed" : "not installed")}"
+        Console.WriteLine($"随 mod 一起录制（{mod ?? "某个 mod"}）：{args[3]}；录制器{(s.RecorderInstalled ? "已安装" : "未安装")}"
             + ((s.RecorderSkip == ScsKiller.SkipModNotChainable ? ScsKiller.NotChainableReason(s.RecorderMod) : s.RecorderSkip ?? s.RecorderNote) is { } why ? $"（{why}）" : ""));
         return 0;
     }
     if (direct)
     {
         if (args[3] == "on" && !g.AnyAntiCheat)
-            return Fail($"{g.Game.Name} shows no anti-cheat right now; the plain recorder is the normal way in — record install {args[2]}");
+            return Fail($"{g.Game.Name} 目前没有检测到反作弊：用普通录制器即可 —— record install {args[2]}");
         k.SetAntiCheatRecording(g.Game.Id, args[3] == "on");
         var s = k.Games.Single(x => x.Game.Id == g.Game.Id);
-        Console.WriteLine($"anti-cheat recording {args[3]} for {g.Game.Name}: anti-cheat {g.AntiCheat}, recorder {(s.RecorderInstalled ? "installed" : "not installed")}"
+        Console.WriteLine($"{g.Game.Name} 的反作弊录制：{args[3]}；反作弊 {g.AntiCheat}，录制器{(s.RecorderInstalled ? "已安装" : "未安装")}"
             + ((s.RecorderSkip ?? s.RecorderNote) is { } why ? $"（{why}）" : ""));
         if (args[3] == "on" && !k.RecorderAcceptsAntiCheat)
-            Console.WriteLine("warning: this copy's native\\d3d12.dll is from before allow_ac=: it will pass through in a game with anti-cheat. Replace it with the rebuilt one (see SCSKiller_NoACGate_1.3.0_移植.md).");
+            Console.WriteLine("警告：此副本的 native\\d3d12.dll 是启用 allow_ac= 之前构建的，在带反作弊的游戏中会直接放行。请换成重新构建的版本（见 SCSKiller_NoACGate_1.3.0_移植.md）。");
         return 0;
     }
     if (args[1] == "install") k.InstallRecorder(g.Game.Id); else k.UninstallRecorder(g.Game.Id);
-    Console.WriteLine($"recorder {args[1]}ed: {Path.GetDirectoryName(g.Game.ExePath)}");
+    Console.WriteLine($"录制器{(args[1] == "install" ? "已安装" : "已卸载")}：{Path.GetDirectoryName(g.Game.ExePath)}");
     return 0;
 }
 

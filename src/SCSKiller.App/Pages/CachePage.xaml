@@ -33,7 +33,7 @@
             <Border Style="{StaticResource Card}" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="驱动的缓存位置" Style="{StaticResource Section}" />
-                    <TextBlock Text="游戏从这里读取缓存，新缓存也写在这里。驱动没有可更改该位置的设置。"
+                    <TextBlock Text="游戏从这里读取缓存，新编译的缓存也写在这里。驱动不提供更改此位置的设置。"
                                Style="{StaticResource Caption}" TextWrapping="Wrap" />
                     <TextBlock Text="SCSKiller 不知道此显卡驱动的缓存位置。" Visibility="{x:Bind Vm.NoFolders, Mode=OneWay}"
                                TextWrapping="Wrap" />

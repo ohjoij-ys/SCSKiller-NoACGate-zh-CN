@@ -117,7 +117,7 @@
                         <TextBlock Text="{x:Bind Vm.LastRebuilt, Mode=OneWay}" Style="{StaticResource Caption}" Visibility="{x:Bind Vm.HasLastRebuilt, Mode=OneWay}" />
                         <Rectangle Height="1" Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                         <TextBlock x:Name="NewShadersHeader" Text="游戏出现新着色器时" Style="{StaticResource Section}" />
-                        <TextBlock Text="已编译的游戏会从录制、共享的着色器哈希或 SCSKiller 更新中获得新管线，绝不会在你游玩时进行。"
+                        <TextBlock Text="已编译的游戏会从录制、共享的着色器哈希或 SCSKiller 更新中获得新管线，绝不会在你游玩时编译。"
                                    Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                         <RadioButtons SelectedIndex="{x:Bind Vm.NewShadersChoice, Mode=TwoWay}" AutomationProperties.Name="游戏出现新着色器时">
                             <RadioButton AutomationProperties.Name="关">
@@ -176,7 +176,7 @@
                                          Severity="{x:Bind Vm.AutoSeverity, Mode=OneWay}" IsClosable="False" />
                             </StackPanel>
                             <InfoBar IsOpen="True" Severity="Informational" IsClosable="False" Title="建议开启"
-                                     Message="NVIDIA App 的测试版功能：驱动更新后会重新编译你玩过的游戏。SCSKiller 补齐其余部分，两者配合效果最好。重叠部分开销很小：NVIDIA 已重建的着色器在这里每条约 1 毫秒。" />
+                                     Message="NVIDIA App 的测试版功能：驱动更新后会重新编译你玩过的游戏。SCSKiller 补齐剩下的部分，两者搭配效果最好；重叠的部分几乎不花时间，NVIDIA 已重建的着色器在这里每条约 1 毫秒。" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -191,7 +191,7 @@
                         <StackPanel Spacing="12">
                             <TextBlock Text="Patreon 与上游社区数据库" Style="{StaticResource Section}" />
                             <StackPanel Spacing="12" Visibility="{x:Bind Patreon.SignedOut, Mode=OneWay}">
-                                <TextBlock Text="上游项目的 Patreon 会员可使用社区着色器哈希数据库。登录及开启下载后会连接上游服务；本 fork 默认关闭社区同步，也尚未发布测试版或预览版更新。"
+                                <TextBlock Text="上游项目的 Patreon 会员可以使用社区着色器哈希数据库。登录并开启下载后会连接上游服务；本 fork 默认关闭社区同步，也还没有测试版或预览版更新。"
                                            Style="{StaticResource Secondary}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <Button Style="{StaticResource AccentButtonStyle}" Content="使用 Patreon 登录" Click="OnSignIn" IsEnabled="{x:Bind Patreon.Idle, Mode=OneWay}" />
@@ -298,7 +298,7 @@
                             <CheckBox IsChecked="{x:Bind Vm.CompileRayTracing, Mode=TwoWay}" AutomationProperties.Name="编译光追着色器">
                                 <StackPanel Spacing="2">
                                     <TextBlock Text="编译光追着色器" TextWrapping="Wrap" />
-                                    <TextBlock Text="关闭：跳过，游戏内开启光追时由游戏自行编译。"
+                                    <TextBlock Text="关闭：跳过，等你在游戏内开启光追时由游戏自行编译。"
                                                Style="{StaticResource Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </CheckBox>
@@ -319,7 +319,7 @@
                         <CheckBox IsChecked="{x:Bind Vm.CloseQuits, Mode=TwoWay}" AutomationProperties.Name="关闭窗口时退出程序">
                             <StackPanel Spacing="2">
                                 <TextBlock Text="关闭窗口时退出程序" TextWrapping="Wrap" />
-                                <TextBlock Text="正在进行的编译会先保存结果，与通知区域里的“退出”相同。关闭此项时，关闭窗口后 SCSKiller 仍驻留通知区域，右键点击图标可退出。"
+                                <TextBlock Text="正在跑的编译会先把结果存下来，与通知区域里的“退出”相同。关掉此项后，关闭窗口时 SCSKiller 仍驻留在通知区域，右键点击图标可退出。"
                                            Style="{StaticResource Caption}" TextWrapping="Wrap" />
                             </StackPanel>
                         </CheckBox>

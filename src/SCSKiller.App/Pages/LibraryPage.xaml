@@ -43,13 +43,13 @@
                             <TextBlock Text="刷新" />
                         </StackPanel>
                     </Button>
-                    <Button AutomationProperties.Name="添加游戏" ToolTipService.ToolTip="添加商店未收录的游戏（其他启动器，或放在独立目录中的游戏）：选择它的 .exe" Click="OnAddGame">
+                    <Button AutomationProperties.Name="添加游戏" ToolTipService.ToolTip="添加平台未收录的游戏（其他启动器，或放在独立目录中的游戏）：选择它的 .exe" Click="OnAddGame">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE710;" FontSize="14" />
                             <TextBlock Text="添加游戏…" />
                         </StackPanel>
                     </Button>
-                    <DropDownButton AutomationProperties.Name="游戏目录" ToolTipService.ToolTip="商店未收录的游戏目录：每次扫描时 SCSKiller 都会在其中查找">
+                    <DropDownButton AutomationProperties.Name="游戏目录" ToolTipService.ToolTip="平台未收录的游戏目录：每次扫描时 SCSKiller 都会在其中查找">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE8B7;" FontSize="14" />
                             <TextBlock Text="游戏目录" />

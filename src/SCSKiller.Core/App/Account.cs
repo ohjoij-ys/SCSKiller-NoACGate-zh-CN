@@ -19,7 +19,7 @@ public sealed record AccountStatus(IReadOnlyList<string> Ent, DateTimeOffset? Un
     /// <summary>The Account card's line, e.g. "Supporter: beta builds and alpha builds."; null when no flag is shown.</summary>
     public string? Benefits => Ent.Where(Names.ContainsKey).Select(k => Names[k]).ToList() is { Count: > 0 } names
         ? "支持者：" + (names.Count > 1 ? string.Join(", ", names[..^1]) + " 和 " + names[^1] : names[0])
-            + (Until is { } until ? $"，有效期至 {until.ToLocalTime():d MMM yyyy}。" : ".")
+            + (Until is { } until ? $"，有效期至 {until.ToLocalTime():yyyy年M月d日}。" : ".")
         : null;
 }
 

@@ -160,7 +160,7 @@ static class BeforeAfterUi
         var dialog = new ContentDialog
         {
             XamlRoot = root, Title = "取消前后对比录制？",
-            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "它的着色器缓存已被清空，在重新编译之前游戏会卡顿。" },
+            Content = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = "游戏着色器缓存已被清空，在重新编译之前游戏会卡顿。" },
             PrimaryButtonText = "立即编译", SecondaryButtonText = "Don't compile", CloseButtonText = "Keep going", DefaultButton = ContentDialogButton.Primary,
         };
         var result = await App.ShowAsync(dialog);

@@ -125,7 +125,7 @@
                             <Button Content="{x:Bind Vm.ClearCacheText, Mode=OneWay}" Click="OnClearCache" IsEnabled="{x:Bind Vm.CanClearCache, Mode=OneWay}" />
                         </Grid>
                         <Button Content="最大编译" Click="OnMaxCompile" Visibility="{x:Bind Vm.CanCompile, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanAdd, Mode=OneWay}"
-                                ToolTipService.ToolTip="编译此游戏着色器的所有组合，每种一次" />
+                                ToolTipService.ToolTip="把此游戏着色器的每个组合都编译一次" />
                         <Grid Background="Transparent" ToolTipService.ToolTip="{x:Bind Vm.CompileTip, Mode=OneWay}" Visibility="{x:Bind Vm.CanCompile, Mode=OneWay}">
                             <Button Style="{x:Bind Vm.CompileStyle, Mode=OneWay}" Click="OnCompile" IsEnabled="{x:Bind Vm.CanAdd, Mode=OneWay}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">

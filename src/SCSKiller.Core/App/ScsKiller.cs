@@ -1316,7 +1316,7 @@ public sealed partial class ScsKiller : IScsKiller
             _ when trimmed != null && KeptReason(rec) is { } kept => (GameStatus.Warmed, kept),
             _ => (GameStatus.Warmed, RtBlocked(rt, noRecording, (partlyCompiled ? $"已针对驱动 {rec.WarmedDriverVersion} 部分编译：{RefusedNote(rejected ?? 0, psos ?? 0)}"
                     : cap is { } t && PartlyWarmedNote(rec, t, careful) is { } partly
-                    ? $"已针对驱动 {rec.WarmedDriverVersion} 部分预编译：{partly}" : $"warmed for driver {rec.WarmedDriverVersion}")
+                    ? $"已针对驱动 {rec.WarmedDriverVersion} 部分编译：{partly}" : $"已针对驱动 {rec.WarmedDriverVersion} 编译")
                 + (PartialNote(rec.Plan?.Stats) is { } partial ? "; " + partial : "")) + unseen),
         };
         // the running launch isn't the last play yet: its counts so far would stay on the page until its exit is read
@@ -1648,7 +1648,7 @@ public sealed partial class ScsKiller : IScsKiller
     /// a supported engine.</summary>
     public static string? SessionKeptNote(GameState s) => s.Engine switch
     {
-        { Encrypted: true } => "其录制已保留备用。添加游戏的 AES 密钥后即可编译。",
+        { Encrypted: true } => "录制已保留备用。添加游戏的 AES 密钥后即可编译。",
         { Unsupported: not null } => "此游戏尚不支持，其录制已保留备用，目前不会据此编译。",
         _ => null,
     };
@@ -1715,8 +1715,8 @@ public sealed partial class ScsKiller : IScsKiller
     /// game's says what it means and what helps.</summary>
     public static string? RefusedLine(GameState s) => s.LastWarmFailed is not > 0 ? null
         : IsPartlyCompiled(s) && PlanItems(s.Plan) is { } n
-            ? $"驱动拒绝了 {n:N0} 条管线中的 {s.LastWarmFailed:N0} 条。这并非故障：游戏用到时会自行编译，"
-              + "首次使用时正是可能卡顿的时候。驱动或 SCSKiller 更新后或许能编译它们，更新完成后请再编译一次。"
+            ? $"驱动拒绝了 {n:N0} 条管线中的 {s.LastWarmFailed:N0} 条。这不算故障：游戏用到时会自己编译，"
+              + "而那正是可能卡顿的时刻。驱动或 SCSKiller 更新后也许能编译它们，届时请再编译一次。"
         : $"驱动跳过了 {s.LastWarmFailed:N0} 种组合。";
 
     /// <summary>The last warm is known and neither failed nor crashed; skipped pipelines (not in this game version) aren't failures.</summary>
@@ -1743,7 +1743,7 @@ public sealed partial class ScsKiller : IScsKiller
     static string? PartlyWarmedNote(GameRecord r, int threads, TimeSpan? careful) => r.FirstLaunch is not { } l || !IsPartlyWarmed(l) ? null
         : $"{l.Compiled * 100:0}% of the {l.Hits + l.Compiles:N0} pipelines its first launch created still compiled"
           + (r.WarmedCareful ? "，即使经过谨慎编译"
-              : r.Plan?.Stats.Recorded == 0 ? "；谨慎编译只改变录制管线的编译方式，而目前还没有录制（开启录制并游玩一次）"
+              : r.Plan?.Stats.Recorded == 0 ? "；谨慎编译只改变录制管线的编译方式，而目前还没有录制（开着录制玩一次即可）"
               : $"；谨慎编译（{threads} 线程，分批进行）能覆盖更多" + (careful is { } t ? $", in about {Duration(t)}" : "")
                 + (r.Careful ? "：下次将采用谨慎编译" : ""));
 
@@ -3225,7 +3225,7 @@ public sealed partial class ScsKiller : IScsKiller
             var was = Store.LoadGame(added.Id);
             if (was.RecorderFiles.Count > 0 || was.RecorderChained != null || was.RecorderExe != null || ProxyOnDisk(added) || ProxyOnDisk(RecordedAt(added, was)))
             {
-                TakeOutNow(added, "被它的商店条目接管了", anyCopys: false);
+                TakeOutNow(added, "平台条目接管了它", anyCopys: false);
                 was = Store.LoadGame(added.Id);
                 if (was.RecorderFiles.Count > 0 || was.RecorderChained != null || was.RecorderRollback || ProxyOnDisk(added) || ProxyOnDisk(RecordedAt(added, was))) return;
             }

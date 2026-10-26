@@ -194,7 +194,7 @@ public sealed partial class ScsKiller
         {
             var name = UninstalledName(id, rec);
             if (notes != null && rec.RecorderInstallDir is { } dir && Directory.Exists(dir))
-                notes[name] = $"其目录 {dir} 仍然存在。它可能在某个磁盘上，或位于 SCSKiller 本次未发现的平台中。";
+                notes[name] = $"此目录 {dir} 仍然存在：它可能在某个磁盘上，或位于 SCSKiller 本次未扫描到的平台中。";
             Claim(rec, [UninstalledExe(rec), rec.LaunchedExeName, Path.GetFileName(rec.RecorderExe)], CacheGroupKind.Uninstalled, name, id);
         }
         if (own == GpuVendor.Nvidia)   // the key ignores the exe name's case and path: a game with the same exe name reads it too
